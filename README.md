@@ -102,6 +102,19 @@ Análisis de archivos de auth, login, session, middleware, security y config:
 - Rutas sin protección o sin control de roles
 - Cookies de sesión inseguras
 
+## Reporte Markdown
+
+Al finalizar el análisis, la herramienta genera automáticamente un reporte en formato Markdown en:
+
+```
+<directorio-analizado>/analysisByVCV/analysis.md
+```
+
+El reporte incluye:
+- Fecha y directorio analizado
+- Todos los hallazgos agrupados por escáner, con severidad, archivo, línea y regla
+- Tabla resumen con conteo por severidad
+
 ## Severidades
 
 Los hallazgos se clasifican en tres niveles, mostrados con colores en la terminal:
@@ -135,8 +148,8 @@ src/
 │   ├── ClaudeAIClient.ts    # Cliente Claude (Agent SDK)
 │   ├── IAIClient.ts         # Interfaz común de IA
 │   ├── ScannerRegistry.ts   # Registro de escáneres
-│   ├── ResultReporter.ts    # Interfaz de reporte
-│   └── ConsoleReporter.ts   # Reporte por consola
+│   ├── ResultReporter.ts    # Interfaz de reporte (con export a Markdown)
+│   └── ConsoleReporter.ts   # Reporte por consola + export a .md
 └── scanners/
     ├── BaseScanner.ts       # Clase base abstracta
     ├── SecretScanner.ts     # Detección de secretos (regex)

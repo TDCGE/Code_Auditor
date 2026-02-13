@@ -30,6 +30,10 @@ export class Orchestrator {
 
     // 2. Ejecución con Streaming
     for (const scanner of this.scanners) {
+        if (this.reporter.setCurrentScanner) {
+            this.reporter.setCurrentScanner(scanner.getName());
+        }
+
         console.log(chalk.cyan.bold(`>>> Iniciando: ${scanner.getName()}`));
 
         await scanner.scan((result) => this.reporter.printResult(result));
@@ -39,5 +43,10 @@ export class Orchestrator {
 
     // 3. Resumen Final
     this.reporter.printSummary();
+
+    // 4. Exportar a Markdown
+    if (this.reporter.save) {
+        await this.reporter.save(this.targetPath);
+    }
   }
 }

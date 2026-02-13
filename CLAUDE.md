@@ -26,7 +26,7 @@ npx tsc
 **Entry point**: `src/index.ts` — Commander.js CLI that parses `--path` argument and delegates to Orchestrator.
 
 **Core layer** (`src/core/`):
-- `Orchestrator.ts` — Coordinates detection and scanning, prints color-coded results in real-time via callbacks
+- `Orchestrator.ts` — Coordinates detection and scanning, prints color-coded results in real-time via callbacks, and triggers Markdown export at the end
 - `Detector.ts` — Identifies tech stacks (Node, Python, Java) by looking for config files (package.json, requirements.txt, pom.xml, etc.)
 - `AIClient.ts` — `GeminiAIClient`: Sends code snippets to Google Gemini 2.5 Flash API, returns structured `{severity, category, message, suggestion}` issues
 - `ClaudeAIClient.ts` — Alternative AI client using `@anthropic-ai/claude-agent-sdk` SDK. Uses existing Claude Code CLI authentication (no API key needed). Supports optional skills mode for architecture analysis via `.claude/skills/design-patterns-guide/`
@@ -45,6 +45,7 @@ npx tsc
 ## Key Patterns
 
 - Scanners use a **callback pattern** for real-time result streaming — results are emitted individually via `onResult` callback rather than collected and returned in batch
+- `ConsoleReporter` accumulates results per scanner and exports a **Markdown report** to `<targetPath>/analysisByVCV/analysis.md` via the `save()` method called by Orchestrator after all scanners finish
 - AI scanners **gracefully degrade** — if `GEMINI_API_KEY` is missing or API calls fail, they return empty results instead of crashing
 - Severity levels: `HIGH`, `MEDIUM`, `LOW` — displayed with color coding (red, yellow, blue via chalk)
 - AI prompts in `AuthScanner` are written in **Spanish**
