@@ -4,10 +4,9 @@ import { IAIClient, AIReviewResult } from './IAIClient';
 
 dotenv.config();
 
-// Re-export for backwards compatibility
 export { AIReviewResult } from './IAIClient';
 
-export class AIClient implements IAIClient {
+export class GeminiAIClient implements IAIClient {
   private readonly apiKey: string | undefined;
 
   constructor() {
@@ -54,7 +53,7 @@ export class AIClient implements IAIClient {
     return this.callGeminiAPI(prompt);
   }
 
-  public async sendPrompt(prompt: string): Promise<AIReviewResult> {
+  public async sendPrompt(prompt: string, _options?: { useSkills?: boolean }): Promise<AIReviewResult> {
     if (!this.apiKey) throw new Error('API Key no configurada');
     return this.callGeminiAPI(prompt);
   }

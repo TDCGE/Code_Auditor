@@ -10,5 +10,5 @@ export interface AIReviewResult {
 export interface IAIClient {
   hasKey(): boolean;
   analyzeCode(codeSnippet: string, filename: string): Promise<AIReviewResult>;
-  sendPrompt(prompt: string): Promise<AIReviewResult>;
+  sendPrompt(prompt: string, options?: { useSkills?: boolean }): Promise<AIReviewResult>;
 }

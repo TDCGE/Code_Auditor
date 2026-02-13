@@ -12,7 +12,7 @@ export class ArchitectureScanner extends BaseScanner {
   }
 
   getName(): string {
-    return 'Revisor de Arquitectura con IA (Gemini)';
+    return 'Revisor de Arquitectura con IA';
   }
 
   protected findFiles(): string[] {
@@ -51,7 +51,7 @@ export class ArchitectureScanner extends BaseScanner {
       ${content.substring(0, 5000)}
     `;
 
-    const aiResponse = await this.aiClient.sendPrompt(prompt);
+    const aiResponse = await this.aiClient.sendPrompt(prompt, { useSkills: true });
 
     return aiResponse.issues.map(issue => ({
       file: this.relativePath(filePath),
@@ -116,7 +116,7 @@ export class ArchitectureScanner extends BaseScanner {
           Si la estructura se ve bien (tiene carpetas claras como src, internal, pkg, api, etc), devuelve "issues": [].
       `;
 
-      const aiResponse = await this.aiClient.sendPrompt(prompt);
+      const aiResponse = await this.aiClient.sendPrompt(prompt, { useSkills: true });
 
       aiResponse.issues.forEach(issue => {
         const result: ScanResult = {

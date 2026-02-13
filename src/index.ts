@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import figlet from 'figlet';
 import { Orchestrator } from './core/Orchestrator';
 import { ConsoleReporter } from './core/ConsoleReporter';
-import { AIClient } from './core/AIClient';
+import { createAIClient, AIProvider } from './core/AIClientFactory';
 import { ScannerRegistry } from './core/ScannerRegistry';
 import { SecretScanner } from './scanners/SecretScanner';
 import { ArchitectureScanner } from './scanners/ArchitectureScanner';
@@ -22,9 +22,10 @@ program
   .version('1.0.0')
   .description('Herramienta de Verificación de Calidad y Seguridad para CGE (Vibe Coding QA)')
   .option('-p, --path <path>', 'Ruta del directorio a escanear', '.')
+  .option('--provider <provider>', 'Proveedor de IA: claude, gemini, auto', 'auto')
   .action(async (options) => {
     try {
-      const aiClient = new AIClient();
+      const aiClient = createAIClient(options.provider as AIProvider);
       const registry = new ScannerRegistry();
       registry.register(p => new SecretScanner(p));
       registry.register(p => new ArchitectureScanner(p, aiClient));
