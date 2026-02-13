@@ -1,6 +1,5 @@
 # Enviroment
 .env*
-.env.example
 
 # Documentation for design patterns
 design-patterns.pdf

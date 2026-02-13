@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**vibeCodingVerificator** is a TypeScript CLI tool (`CGE-Verificator`) that analyzes code projects for security issues, architectural violations, and best practices. Built for CGE (Compañía General de Electricidad). It uses regex-based secret detection and AI-powered semantic analysis (Google Gemini or Claude Code SDK) for authentication and architecture patterns.
+**vibeCodingVerificator** is a TypeScript CLI tool (`CGE-Verificator`) that analyzes code projects for security issues, architectural violations, and best practices. Built for CGE (Compañía General de Electricidad). It uses regex-based secret detection and AI-powered semantic analysis (Google Gemini or Claude Agent SDK) for authentication and architecture patterns.
 
 ## Commands
 
@@ -29,8 +29,8 @@ npx tsc
 - `Orchestrator.ts` — Coordinates detection and scanning, prints color-coded results in real-time via callbacks
 - `Detector.ts` — Identifies tech stacks (Node, Python, Java) by looking for config files (package.json, requirements.txt, pom.xml, etc.)
 - `AIClient.ts` — `GeminiAIClient`: Sends code snippets to Google Gemini 2.5 Flash API, returns structured `{severity, category, message, suggestion}` issues
-- `ClaudeAIClient.ts` — Alternative AI client using `@anthropic-ai/claude-code` SDK. Uses existing Claude Code CLI authentication (no API key needed). Supports optional skills mode for architecture analysis via `.claude/skills/design-patterns-guide/`
-- `AIClientFactory.ts` — Factory with `createAIClient(provider)` function. Auto-detects provider: prefers Gemini if key exists, falls back to Claude Code SDK. Configurable via `--provider` CLI flag or `AI_PROVIDER` env var
+- `ClaudeAIClient.ts` — Alternative AI client using `@anthropic-ai/claude-agent-sdk` SDK. Uses existing Claude Code CLI authentication (no API key needed). Supports optional skills mode for architecture analysis via `.claude/skills/design-patterns-guide/`
+- `AIClientFactory.ts` — Factory with `createAIClient(provider)` function. Auto-detects provider: prefers Gemini if key exists, falls back to Claude Agent SDK. Configurable via `--provider` CLI flag or `AI_PROVIDER` env var
 
 **Scanners** (`src/scanners/`):
 - `BaseScanner.ts` — Abstract base class defining `scan(onResult?)` and `getName()` interface, with `ScanResult` type (file, line, message, severity, rule)
@@ -53,7 +53,7 @@ npx tsc
 
 Requires either:
 - A `.env` file with `GEMINI_API_KEY` for Gemini-powered scanners, **or**
-- Claude Code CLI installed and authenticated (`npm i -g @anthropic-ai/claude-code`) for Claude-powered scanners (zero-config, no API key needed)
+- Claude Code CLI installed and authenticated (`npm i -g @anthropic-ai/claude-agent-sdk`) for Claude-powered scanners (zero-config, no API key needed)
 
 Optional `AI_PROVIDER` env var or `--provider` CLI flag to force a specific provider (`claude`, `gemini`, `auto`). Default is `auto`.
 
