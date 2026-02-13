@@ -1,6 +1,29 @@
 import path from 'path';
 import { IAIClient, AIReviewResult } from './IAIClient';
 
+// Dynamic import que ts-node no transforma a require()
+const importESM = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<any>;
+
+const AI_REVIEW_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    issues: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          severity: { type: 'string' as const, enum: ['HIGH', 'MEDIUM', 'LOW'] },
+          category: { type: 'string' as const },
+          message: { type: 'string' as const },
+          suggestion: { type: 'string' as const },
+        },
+        required: ['severity', 'category', 'message', 'suggestion'],
+      },
+    },
+  },
+  required: ['issues'],
+};
+
 export class ClaudeAIClient implements IAIClient {
   private available: boolean | null = null;
 
@@ -9,7 +32,10 @@ export class ClaudeAIClient implements IAIClient {
 
     try {
       const { execSync } = require('child_process');
-      execSync('claude --version', { stdio: 'ignore' });
+      // Limpiar CLAUDECODE para permitir detección desde dentro de Claude Code
+      const env = { ...process.env };
+      delete env.CLAUDECODE;
+      execSync('claude --version', { stdio: 'ignore', env });
       this.available = true;
     } catch {
       this.available = false;
@@ -57,39 +83,60 @@ export class ClaudeAIClient implements IAIClient {
 
   private async callClaude(prompt: string, useSkills: boolean = false): Promise<AIReviewResult> {
     try {
-      const { query } = await import('@anthropic-ai/claude-agent-sdk');
+      // Permitir ejecución desde dentro de una sesión de Claude Code
+      delete process.env.CLAUDECODE;
+
+      const { query } = await importESM('@anthropic-ai/claude-agent-sdk');
       const verificatorRoot = path.resolve(__dirname, '..', '..');
 
       const baseOptions = {
         systemPrompt: `Eres un experto en Seguridad OWASP y Arquitectura de Software.
-Responde SIEMPRE con JSON válido. Mensajes y sugerencias EN ESPAÑOL.`,
-        maxTurns: 1,
+Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.`,
+        maxTurns: 5,
         allowedTools: [] as string[],
+        outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },
       };
 
       const skillOptions = {
         cwd: verificatorRoot,
         settingSources: ['project' as const],
         systemPrompt: `Eres un Arquitecto de Software Senior y Experto en Seguridad OWASP.
-Responde SIEMPRE con JSON válido. Mensajes y sugerencias EN ESPAÑOL.
+Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.
 IMPORTANTE: Invoca la skill "design-patterns-guide" para enriquecer tu análisis
 con patrones GoF y principios SOLID.`,
         maxTurns: 5,
         allowedTools: ['Skill', 'Read', 'Glob'],
+        outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },
       };
 
       const sdkOptions = useSkills ? skillOptions : baseOptions;
 
       let resultText = '';
       for await (const message of query({ prompt, options: sdkOptions })) {
-        if (message.type === 'result' && message.subtype === 'success') {
-          resultText = message.result;
+        if (message.type === 'result') {
+          if (message.subtype === 'success') {
+            if (message.structured_output) {
+              return message.structured_output as AIReviewResult;
+            }
+            resultText = message.result;
+          } else {
+            // Error del SDK (max_turns, max_structured_output_retries, etc.)
+            console.error(`[Claude SDK] Error subtype: ${message.subtype}`);
+            if (message.errors) {
+              console.error(`[Claude SDK] Errors:`, message.errors);
+            }
+          }
         }
       }
 
+      // Fallback: extraer JSON del texto libre
       if (resultText) {
-        const cleanJson = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanJson) as AIReviewResult;
+        const start = resultText.indexOf('{');
+        const end = resultText.lastIndexOf('}');
+        if (start !== -1 && end > start) {
+          return JSON.parse(resultText.substring(start, end + 1)) as AIReviewResult;
+        }
+        console.error('[Claude SDK] No se pudo extraer JSON del resultado:', resultText.substring(0, 200));
       }
       return { issues: [] };
     } catch (error) {
