@@ -1,3 +1,6 @@
+# Claude
+.claude/settings.local.json
+
 # Documentation for design patterns
 design-patterns.pdf
 design-patterns-divided
