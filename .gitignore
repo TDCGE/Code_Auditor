@@ -1,5 +1,6 @@
 # Claude
 .claude/settings.local.json
+analysisByVCV
 
 # Documentation for design patterns
 design-patterns.pdf
