@@ -12,6 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Run the tool against a target project
 npx ts-node src/index.ts --path <directory>
 
+# Run with file/folder exclusions
+npx ts-node src/index.ts --path <directory> --exclude 'node_modules,dist,*.test.ts'
+
 # Install dependencies
 npm install
 
@@ -30,7 +33,7 @@ npx tsc
 - `Detector.ts` — Identifies tech stacks (Node, Python, Java) by looking for config files (package.json, requirements.txt, pom.xml, etc.)
 - `GeminiAIClient.ts` — `GeminiAIClient`: Sends code snippets to Google Gemini 2.5 Flash API, returns structured `{severity, category, message, suggestion}` issues
 - `ClaudeAIClient.ts` — Alternative AI client using `@anthropic-ai/claude-agent-sdk` SDK. Uses existing Claude Code CLI authentication (no API key needed). Supports optional skills mode for architecture analysis via `.claude/skills/design-patterns-guide/`
-- `AIClientFactory.ts` — Factory with `createAIClient(provider)` function. Auto-detects provider: prefers Gemini if key exists, falls back to Claude Agent SDK. Configurable via `--provider` CLI flag or `AI_PROVIDER` env var
+- `AIClientFactory.ts` — Factory with `createAIClient()` function. Provider is selected via `AI_PROVIDER` env var (defaults to `claude` if not set)
 
 **Scanners** (`src/scanners/`):
 - `BaseScanner.ts` — Abstract base class defining `scan(onResult?)` and `getName()` interface, with `ScanResult` type (file, line, message, severity, rule)
@@ -47,6 +50,7 @@ npx tsc
 - Scanners use a **callback pattern** for real-time result streaming — results are emitted individually via `onResult` callback rather than collected and returned in batch
 - `ConsoleReporter` accumulates results per scanner and exports a **Markdown report** to `<targetPath>/analysisByVCV/analysis.md` via the `save()` method called by Orchestrator after all scanners finish
 - AI scanners **gracefully degrade** — if `GEMINI_API_KEY` is missing or API calls fail, they return empty results instead of crashing
+- **File exclusion** is handled in `BaseScanner.filterExcluded()` using micromatch for glob pattern matching — user patterns from `--exclude` flag are applied to all scanners
 - Severity levels: `HIGH`, `MEDIUM`, `LOW` — displayed with color coding (red, yellow, blue via chalk)
 - AI prompts in `AuthScanner` are written in **Spanish**
 
@@ -56,7 +60,7 @@ Requires either:
 - A `.env` file with `GEMINI_API_KEY` for Gemini-powered scanners, **or**
 - Claude Code CLI installed and authenticated (`npm i -g @anthropic-ai/claude-agent-sdk`) for Claude-powered scanners (zero-config, no API key needed)
 
-Optional `AI_PROVIDER` env var or `--provider` CLI flag to force a specific provider (`claude`, `gemini`, `auto`). Default is `auto`.
+Optional `AI_PROVIDER` env var to select provider (`claude` or `gemini`). Defaults to `claude` if not set.
 
 ## TypeScript Config
 

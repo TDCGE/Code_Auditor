@@ -1,13 +1,9 @@
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import { ScanResult } from '../scanners/ScanResult';
-import { ResultReporter } from './ResultReporter';
-
-interface ScannerSection {
-  scanner: string;
-  results: ScanResult[];
-}
+import {ScanResult} from '../../scanners/ScanResult';
+import {ResultReporter} from './ResultReporter';
+import {ScannerSection} from "../scanner/ScannerSection";
 
 export class ConsoleReporter implements ResultReporter {
   private hasCriticalIssues = false;

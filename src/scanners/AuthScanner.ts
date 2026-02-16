@@ -7,8 +7,8 @@ import path from 'path';
 export class AuthScanner extends BaseScanner {
   private aiClient: IAIClient;
 
-  constructor(targetPath: string, aiClient: IAIClient) {
-    super(targetPath);
+  constructor(targetPath: string, aiClient: IAIClient, excludePatterns: string[] = []) {
+    super(targetPath, excludePatterns);
     this.aiClient = aiClient;
   }
 

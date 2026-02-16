@@ -1,7 +1,7 @@
 import chalk from 'chalk';
-import { Detector } from './Detector';
+import { Detector } from './detector/Detector';
 import { BaseScanner } from '../scanners/BaseScanner';
-import { ResultReporter } from './ResultReporter';
+import { ResultReporter } from './reporter/ResultReporter';
 
 export class Orchestrator {
   private targetPath: string;

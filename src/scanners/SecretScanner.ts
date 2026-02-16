@@ -10,6 +10,10 @@ const patterns = [
 ];
 
 export class SecretScanner extends BaseScanner {
+  constructor(targetPath: string, excludePatterns: string[] = []) {
+    super(targetPath, excludePatterns);
+  }
+
   getName(): string {
     return 'Escáner de Secretos (Credenciales Hardcodeadas)';
   }
@@ -22,7 +26,7 @@ export class SecretScanner extends BaseScanner {
         '**/.git/**',
         '**/dist/**',
         '**/.idea/**',
-        '**/src/scanners/**'
+        '**/src/scanner/**'
       ],
       nodir: true,
       absolute: true

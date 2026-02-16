@@ -7,8 +7,8 @@ import path from 'path';
 export class ArchitectureScanner extends BaseScanner {
   private aiClient: IAIClient;
 
-  constructor(targetPath: string, aiClient: IAIClient) {
-    super(targetPath);
+  constructor(targetPath: string, aiClient: IAIClient, excludePatterns: string[] = []) {
+    super(targetPath, excludePatterns);
     this.aiClient = aiClient;
   }
 
@@ -83,7 +83,12 @@ export class ArchitectureScanner extends BaseScanner {
     try {
       const structure = globSync('**', {
         cwd: this.targetPath,
-        ignore: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
+        ignore: [
+          '**/node_modules/**',
+          '**/dist/**',
+          '**/.git/**',
+          ...this.excludePatterns.map(p => `**/${p}`)
+        ],
         nodir: false,
         maxDepth: 2
       });

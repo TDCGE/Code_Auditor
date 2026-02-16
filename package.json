@@ -20,6 +20,7 @@
     "fs-extra": "^11.3.3",
     "glob": "^13.0.2",
     "inquirer": "^8.2.7",
+    "micromatch": "^4.0.8",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
@@ -27,6 +28,7 @@
     "@types/figlet": "^1.7.0",
     "@types/fs-extra": "^11.0.4",
     "@types/glob": "^8.1.0",
-    "@types/inquirer": "^9.0.9"
+    "@types/inquirer": "^9.0.9",
+    "@types/micromatch": "^4.0.10"
   }
 }

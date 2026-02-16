@@ -1,12 +1,15 @@
 import fs from 'fs-extra';
 import path from 'path';
+import micromatch from 'micromatch';
 import { ScanResult } from './ScanResult'
 
 export abstract class BaseScanner {
   protected targetPath: string;
+  protected excludePatterns: string[] = [];
 
-  constructor(targetPath: string) {
+  constructor(targetPath: string, excludePatterns: string[] = []) {
     this.targetPath = targetPath;
+    this.excludePatterns = excludePatterns;
   }
 
   abstract getName(): string;
@@ -21,8 +24,9 @@ export abstract class BaseScanner {
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     const allResults: ScanResult[] = [];
     const files = this.findFiles();
+    const filteredFiles = this.filterExcluded(files);
 
-    for (const file of files) {
+    for (const file of filteredFiles) {
       try {
         const content = await fs.readFile(file, 'utf-8');
         const results = await this.analyzeFile(file, content);
@@ -37,6 +41,16 @@ export abstract class BaseScanner {
     }
 
     return allResults;
+  }
+
+  /** Helper to filter out excluded files based on user patterns. */
+  protected filterExcluded(files: string[]): string[] {
+    if (this.excludePatterns.length === 0) return files;
+
+    return files.filter(file => {
+      const relativePath = this.relativePath(file);
+      return !micromatch.isMatch(relativePath, this.excludePatterns);
+    });
   }
 
   /** Helper to get a relative path from targetPath. */

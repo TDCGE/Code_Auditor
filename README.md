@@ -25,13 +25,13 @@ Copiar el archivo de ejemplo y editar según el proveedor elegido:
 cp .env.example .env
 ```
 
-**Opción A -- Claude (sin API key):**
+**Opción A -- Claude (por defecto):**
 
 ```env
 AI_PROVIDER=claude
 ```
 
-Requiere tener `claude` CLI instalado y autenticado globalmente.
+Requiere tener `claude` CLI instalado y autenticado globalmente. Si no se especifica `AI_PROVIDER`, Claude será el proveedor por defecto.
 
 **Opción B -- Gemini:**
 
@@ -39,14 +39,6 @@ Requiere tener `claude` CLI instalado y autenticado globalmente.
 GEMINI_API_KEY=tu_api_key_aqui
 AI_PROVIDER=gemini
 ```
-
-**Opción C -- Auto (por defecto):**
-
-```env
-AI_PROVIDER=auto
-```
-
-Usa Gemini si `GEMINI_API_KEY` está configurada, sino usa Claude.
 
 ## Uso
 
@@ -59,19 +51,22 @@ npx ts-node src/index.ts --path <directorio-a-analizar>
 | Flag | Descripción | Valor por defecto |
 |------|-------------|-------------------|
 | `-p, --path <ruta>` | Directorio del proyecto a escanear | `.` (directorio actual) |
-| `--provider <proveedor>` | Proveedor de IA: `claude`, `gemini` o `auto` | `auto` |
+| `-e, --exclude <patterns>` | Patrones glob separados por comas para excluir archivos/carpetas | `''` (sin exclusiones) |
 
 ### Ejemplos
 
 ```bash
-# Analizar un proyecto Python en una ruta específica con Claude
-npx ts-node src/index.ts -p ./mi-proyecto --provider claude
+# Analizar un proyecto excluyendo carpetas de pruebas y build
+npx ts-node src/index.ts -p ./mi-proyecto --exclude 'test,dist,build'
 
-# Analizar el directorio actual con Gemini
-npx ts-node src/index.ts --provider gemini
+# Analizar excluyendo todos los archivos de test
+npx ts-node src/index.ts --exclude '*.test.ts,*.spec.ts'
 
-# Analizar un proyecto dejando que elija el proveedor automáticamente
-npx ts-node src/index.ts -p ../otro-proyecto
+# Analizar con exclusiones múltiples
+npx ts-node src/index.ts -p ../otro-proyecto --exclude 'vendor,temp,*.log'
+
+# Analizar el directorio actual sin exclusiones
+npx ts-node src/index.ts
 ```
 
 ## Escáneres incluidos
