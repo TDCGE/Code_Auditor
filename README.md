@@ -144,7 +144,7 @@ src/
 │   ├── Orchestrator.ts      # Coordina escaneo y resultados
 │   ├── Detector.ts          # Detecta stacks tecnológicos
 │   ├── AIClientFactory.ts   # Factory para proveedores de IA
-│   ├── AIClient.ts          # Cliente Gemini
+│   ├── GeminiAIClient.ts    # Cliente Gemini
 │   ├── ClaudeAIClient.ts    # Cliente Claude (Agent SDK)
 │   ├── IAIClient.ts         # Interfaz común de IA
 │   ├── ScannerRegistry.ts   # Registro de escáneres

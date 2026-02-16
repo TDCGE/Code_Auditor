@@ -1,10 +1,9 @@
 import https from 'https';
 import dotenv from 'dotenv';
-import { IAIClient, AIReviewResult } from './IAIClient';
+import { IAIClient } from './IAIClient';
+import {AIReviewResult} from "./AIReviewResult";
 
 dotenv.config();
-
-export { AIReviewResult } from './IAIClient';
 
 export class GeminiAIClient implements IAIClient {
   private readonly apiKey: string | undefined;
@@ -106,3 +105,4 @@ export class GeminiAIClient implements IAIClient {
     });
   }
 }
+export {AIReviewResult} from "./AIReviewResult";

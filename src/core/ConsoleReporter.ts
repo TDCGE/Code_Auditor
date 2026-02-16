@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import { ScanResult } from '../scanners/BaseScanner';
+import { ScanResult } from '../scanners/ScanResult';
 import { ResultReporter } from './ResultReporter';
 
 interface ScannerSection {
@@ -80,7 +80,41 @@ export class ConsoleReporter implements ResultReporter {
         else if (r.severity === 'MEDIUM') totalMedium++;
         else totalLow++;
 
-        md += `### [${severityLabel[r.severity]}] ${r.message}\n`;
+        let mainMessage = r.message;
+        let recommendation = '';
+        let suggestion = '';
+
+        // 1. Extraer recomendación (ArchitectureScanner.analyzeStructure)
+        const recIdx = mainMessage.indexOf('\n💡 RECOMENDACIÓN: ');
+        if (recIdx !== -1) {
+          recommendation = mainMessage.substring(recIdx + '\n💡 RECOMENDACIÓN: '.length);
+          mainMessage = mainMessage.substring(0, recIdx);
+        }
+
+        // 2. Extraer sugerencia inline (AuthScanner / ArchitectureScanner.analyzeFile)
+        const sugIdx = mainMessage.indexOf('. Sugerencia: ');
+        if (sugIdx !== -1) {
+          suggestion = mainMessage.substring(sugIdx + '. Sugerencia: '.length);
+          mainMessage = mainMessage.substring(0, sugIdx + 1); // conservar el punto
+        }
+
+        // 3. Separar título de descripción en el primer ': '
+        const colonIdx = mainMessage.indexOf(': ');
+        if (colonIdx !== -1) {
+          const title = mainMessage.substring(0, colonIdx);
+          const description = mainMessage.substring(colonIdx + 2);
+          md += `### [${severityLabel[r.severity]}] ${title}\n\n${description}\n\n`;
+        } else {
+          md += `### [${severityLabel[r.severity]}] ${mainMessage}\n\n`;
+        }
+
+        // 4. Renderizar sugerencia/recomendación como blockquote
+        if (suggestion) {
+          md += `> **Sugerencia:** ${suggestion}\n\n`;
+        }
+        if (recommendation) {
+          md += `> 💡 **RECOMENDACIÓN:** ${recommendation}\n\n`;
+        }
         md += `- **Archivo:** ${r.file}:${r.line}\n`;
         md += `- **Regla:** \`${r.rule}\`\n\n`;
       }

@@ -1,5 +1,6 @@
 import path from 'path';
-import { IAIClient, AIReviewResult } from './IAIClient';
+import { IAIClient } from './IAIClient';
+import {AIReviewResult} from "./AIReviewResult";
 
 // Dynamic import que ts-node no transforma a require()
 const importESM = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<any>;

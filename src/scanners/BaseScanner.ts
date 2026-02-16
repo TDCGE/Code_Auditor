@@ -1,13 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
-
-export interface ScanResult {
-  file: string;
-  line: number;
-  message: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
-  rule: string;
-}
+import { ScanResult } from './ScanResult'
 
 export abstract class BaseScanner {
   protected targetPath: string;

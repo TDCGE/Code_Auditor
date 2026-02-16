@@ -1,4 +1,5 @@
-import { BaseScanner, ScanResult } from './BaseScanner';
+import { BaseScanner } from './BaseScanner';
+import { ScanResult } from './ScanResult';
 import { globSync } from 'glob';
 
 const patterns = [

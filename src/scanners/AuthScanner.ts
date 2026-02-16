@@ -1,5 +1,6 @@
-import { BaseScanner, ScanResult } from './BaseScanner';
-import { IAIClient } from '../core/IAIClient';
+import { BaseScanner } from './BaseScanner';
+import { ScanResult } from "./ScanResult";
+import { IAIClient } from '../core/ai/IAIClient';
 import { globSync } from 'glob';
 import path from 'path';
 

@@ -1,13 +1,8 @@
-import fs from 'fs-extra';
 import path from 'path';
-import { globSync } from 'glob';
+import {globSync} from 'glob';
+import {DetectedStack} from "./DetectedStack";
 
 export type TechStack = 'node' | 'python' | 'java' | 'unknown';
-
-export interface DetectedStack {
-  stack: TechStack;
-  path: string;
-}
 
 export class Detector {
   private readonly targetPath: string;

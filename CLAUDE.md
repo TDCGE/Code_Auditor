@@ -28,7 +28,7 @@ npx tsc
 **Core layer** (`src/core/`):
 - `Orchestrator.ts` — Coordinates detection and scanning, prints color-coded results in real-time via callbacks, and triggers Markdown export at the end
 - `Detector.ts` — Identifies tech stacks (Node, Python, Java) by looking for config files (package.json, requirements.txt, pom.xml, etc.)
-- `AIClient.ts` — `GeminiAIClient`: Sends code snippets to Google Gemini 2.5 Flash API, returns structured `{severity, category, message, suggestion}` issues
+- `GeminiAIClient.ts` — `GeminiAIClient`: Sends code snippets to Google Gemini 2.5 Flash API, returns structured `{severity, category, message, suggestion}` issues
 - `ClaudeAIClient.ts` — Alternative AI client using `@anthropic-ai/claude-agent-sdk` SDK. Uses existing Claude Code CLI authentication (no API key needed). Supports optional skills mode for architecture analysis via `.claude/skills/design-patterns-guide/`
 - `AIClientFactory.ts` — Factory with `createAIClient(provider)` function. Auto-detects provider: prefers Gemini if key exists, falls back to Claude Agent SDK. Configurable via `--provider` CLI flag or `AI_PROVIDER` env var
 
