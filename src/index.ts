@@ -12,7 +12,6 @@ import {IAIClient} from "./core/ai/IAIClient";
 import dotenv from "dotenv";
 import {ClaudeClient} from "./core/ai/factory/ClaudeClient";
 import {GeminiClient} from "./core/ai/factory/GeminiClient";
-import {ClaudeAIClient} from "./core/ai/ClaudeAIClient";
 import {AIClientFactory} from "./core/ai/factory/AIClientFactory";
 
 dotenv.config();

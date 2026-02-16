@@ -93,7 +93,7 @@ export class ClaudeAIClient implements IAIClient {
       const baseOptions = {
         systemPrompt: `Eres un experto en Seguridad OWASP y Arquitectura de Software.
 Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.`,
-        maxTurns: 5,
+        maxTurns: 10,
         allowedTools: [] as string[],
         outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },
       };
@@ -105,7 +105,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerenci
 Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.
 IMPORTANTE: Invoca la skill "design-patterns-guide" para enriquecer tu análisis
 con patrones GoF y principios SOLID.`,
-        maxTurns: 5,
+        maxTurns: 10,
         allowedTools: ['Skill', 'Read', 'Glob'],
         outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },
       };
