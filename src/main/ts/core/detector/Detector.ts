@@ -6,9 +6,15 @@ export type TechStack = 'node' | 'python' | 'java' | 'unknown';
 
 export class Detector {
   private readonly targetPath: string;
+  private readonly excludePatterns: string[];
 
-  constructor(targetPath: string) {
+  constructor(targetPath: string, excludePatterns: string[] = []) {
     this.targetPath = targetPath;
+    this.excludePatterns = excludePatterns;
+  }
+
+  public getTargetPath(): string {
+    return this.targetPath;
   }
 
   public async detect(): Promise<DetectedStack[]> {
@@ -17,7 +23,7 @@ export class Detector {
     // Opciones comunes para glob
     const globOptions = {
       cwd: this.targetPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/venv/**', '**/__pycache__/**'],
+      ignore: ['**/node_modules/**', '**/dist/**', '**/.git/**', '**/venv/**', '**/__pycache__/**', ...this.excludePatterns],
       absolute: true,
       nodir: true
     };

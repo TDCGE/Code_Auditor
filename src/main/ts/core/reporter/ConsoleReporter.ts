@@ -1,24 +1,34 @@
 import chalk from 'chalk';
 import fs from 'fs';
-import path from 'path';
-import {ScanResult} from '../../types';
-import {ResultReporter} from './ResultReporter';
-import {ScannerSection} from "../scanner/ScannerSection";
+import { ScanResult, hasLine, SEVERITY_CONFIG, SeverityBadgeColor } from '../../types';
+import { ResultReporter } from './ResultReporter';
+import { ScannerSection } from '../scanner/ScannerSection';
+import { AuditVersionManager } from './AuditVersionManager';
+
+const BADGE_FORMATTERS: Record<SeverityBadgeColor, (text: string) => string> = {
+  red:    (t) => chalk.bgRed.white.bold(t),
+  yellow: (t) => chalk.bgYellow.black(t),
+  blue:   (t) => chalk.bgBlue.white(t),
+};
 
 export class ConsoleReporter implements ResultReporter {
   private hasCriticalIssues = false;
   private currentScanner = '';
   private sections: ScannerSection[] = [];
+  private suppressedCount = 0;
+
+  setSuppressedCount(count: number): void {
+    this.suppressedCount = count;
+  }
 
   printResult(r: ScanResult): void {
     if (r.severity === 'HIGH') this.hasCriticalIssues = true;
 
-    const badge = r.severity === 'HIGH'
-      ? chalk.bgRed.white.bold(' CRÍTICO ')
-      : (r.severity === 'MEDIUM' ? chalk.bgYellow.black(' MEDIO ') : chalk.bgBlue.white(' BAJO '));
+    const cfg = SEVERITY_CONFIG[r.severity];
+    const badge = BADGE_FORMATTERS[cfg.badgeColor](` ${cfg.label} `);
 
     console.log(`${badge} ${chalk.white.bold(r.message)}`);
-    console.log(chalk.gray(`  └─ Archivo: ${r.file}:${r.line}`));
+    console.log(chalk.gray(`  └─ Archivo: ${r.file}${hasLine(r) ? ':' + r.line : ''}`));
     console.log('');
 
     // Accumulate for Markdown export
@@ -42,20 +52,26 @@ export class ConsoleReporter implements ResultReporter {
     this.sections.push({ scanner: name, results: [] });
   }
 
-  async save(targetPath: string): Promise<void> {
-    const dir = path.join(path.resolve(targetPath), 'analysisByVCV');
-    const filePath = path.join(dir, 'analysis.md');
+  async save(targetPath: string): Promise<string> {
+    const versionManager = new AuditVersionManager(targetPath);
+    const versionDir = versionManager.createVersionDir();
 
-    fs.mkdirSync(dir, { recursive: true });
+    const auditMd = this.generateAuditMarkdown(targetPath);
+    fs.writeFileSync(`${versionDir}/audit.md`, auditMd, 'utf-8');
 
+    const reviewLogMd = this.generateReviewLog();
+    fs.writeFileSync(`${versionDir}/review-log.md`, reviewLogMd, 'utf-8');
+
+    const changelogMd = this.generateChangelog();
+    fs.writeFileSync(`${versionDir}/changelog.md`, changelogMd, 'utf-8');
+
+    console.log(chalk.green(`\n[✔] Reporte de auditoría guardado en: ${versionDir}`));
+    return versionDir;
+  }
+
+  private generateAuditMarkdown(targetPath: string): string {
     const now = new Date();
     const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
-
-    const severityLabel: Record<string, string> = {
-      HIGH: 'CRÍTICO',
-      MEDIUM: 'MEDIO',
-      LOW: 'BAJO',
-    };
 
     let md = `# Reporte de Análisis - CGE-Verificator\n\n`;
     md += `**Fecha:** ${timestamp}\n`;
@@ -91,7 +107,7 @@ export class ConsoleReporter implements ResultReporter {
         const sugIdx = mainMessage.indexOf('. Sugerencia: ');
         if (sugIdx !== -1) {
           suggestion = mainMessage.substring(sugIdx + '. Sugerencia: '.length);
-          mainMessage = mainMessage.substring(0, sugIdx + 1); // conservar el punto
+          mainMessage = mainMessage.substring(0, sugIdx + 1);
         }
 
         // 3. Fallback al campo suggestion del ScanResult
@@ -99,24 +115,25 @@ export class ConsoleReporter implements ResultReporter {
           suggestion = r.suggestion;
         }
 
-        // 3. Separar título de descripción en el primer ': '
+        // 4. Separar título de descripción en el primer ': '
+        const label = SEVERITY_CONFIG[r.severity].label;
         const colonIdx = mainMessage.indexOf(': ');
         if (colonIdx !== -1) {
           const title = mainMessage.substring(0, colonIdx);
           const description = mainMessage.substring(colonIdx + 2);
-          md += `### [${severityLabel[r.severity]}] ${title}\n\n${description}\n\n`;
+          md += `### [${label}] ${title}\n\n${description}\n\n`;
         } else {
-          md += `### [${severityLabel[r.severity]}] ${mainMessage}\n\n`;
+          md += `### [${label}] ${mainMessage}\n\n`;
         }
 
-        // 4. Renderizar sugerencia/recomendación como blockquote
+        // 5. Renderizar sugerencia/recomendación como blockquote
         if (suggestion) {
           md += `> **Sugerencia:** ${suggestion}\n\n`;
         }
         if (recommendation) {
           md += `> 💡 **RECOMENDACIÓN:** ${recommendation}\n\n`;
         }
-        md += `- **Archivo:** ${r.file}:${r.line}\n`;
+        md += `- **Archivo:** ${r.file}${hasLine(r) ? ':' + r.line : ''}\n`;
         md += `- **Regla:** \`${r.rule}\`\n\n`;
       }
 
@@ -142,7 +159,53 @@ export class ConsoleReporter implements ResultReporter {
     md += `| BAJO      | ${totalLow}        |\n`;
     md += `| **Total** | **${total}**   |\n`;
 
-    fs.writeFileSync(filePath, md, 'utf-8');
-    console.log(chalk.green(`\n[✔] Reporte Markdown guardado en: ${filePath}`));
+    if (this.suppressedCount > 0) {
+      md += `| Suprimidos | ${this.suppressedCount} |\n`;
+    }
+
+    return md;
+  }
+
+  private generateReviewLog(): string {
+    let md = `# Review Log - Revisión Manual de Auditoría\n\n`;
+    md += `> Complete esta tabla tras revisar cada hallazgo del reporte \`audit.md\`.\n\n`;
+    md += `| # | Regla | Archivo | Veredicto | Comentario |\n`;
+    md += `|---|-------|---------|-----------|------------|\n`;
+
+    let idx = 1;
+    for (const section of this.sections) {
+      for (const r of section.results) {
+        const file = hasLine(r) ? `${r.file}:${r.line}` : r.file;
+        md += `| ${idx} | \`${r.rule}\` | ${file} | Por revisar | |\n`;
+        idx++;
+      }
+    }
+
+    md += `\n### Veredictos posibles\n\n`;
+    md += `- **Confirmado**: El hallazgo es válido y debe corregirse.\n`;
+    md += `- **Falso positivo**: El hallazgo no aplica en este contexto.\n`;
+    md += `- **Por solucionar**: Hallazgo válido, pendiente de corrección.\n`;
+    md += `- **Resuelto**: Hallazgo corregido (ver changelog.md).\n`;
+
+    return md;
+  }
+
+  private generateChangelog(): string {
+    let md = `# Changelog - Registro de Correcciones\n\n`;
+    md += `> Documente aquí las correcciones aplicadas a los hallazgos de \`audit.md\`.\n\n`;
+
+    let idx = 1;
+    for (const section of this.sections) {
+      for (const r of section.results) {
+        md += `## Hallazgo #${idx}: ${r.rule}\n\n`;
+        md += `- **Estado:** Pendiente\n`;
+        md += `- **Archivos modificados:** \n`;
+        md += `- **Descripción del cambio:** \n`;
+        md += `- **Commit:** \n\n`;
+        idx++;
+      }
+    }
+
+    return md;
   }
 }

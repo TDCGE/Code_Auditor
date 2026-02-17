@@ -1,16 +1,15 @@
 # Claude
 .claude/settings.local.json
-analysisByVCV
+**/audit/
 
 # Documentation for design patterns
-design-patterns.pdf
+documents/desing-patterns/design-patterns.pdf
 design-patterns-divided
 
 # Documentation for Claude Skills
-The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+documents/skills-documentation/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
 
 # Vulnerable code for testing
-vulnerable_code.js
 projectsTests
 
 # JetBrains

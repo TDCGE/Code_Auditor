@@ -20,11 +20,18 @@ export abstract class BaseScanner {
   /** Override in subclasses to analyze a single file's content. */
   protected abstract analyzeFile(filePath: string, content: string): Promise<ScanResult[]>;
 
+  /** Verifica que un path resuelto esté dentro del directPath objetivo. */
+  private isWithinTarget(filePath: string): boolean {
+    const resolved = path.resolve(filePath);
+    const target = path.resolve(this.targetPath);
+    return resolved.startsWith(target + path.sep) || resolved === target;
+  }
+
   /** Template method: finds files, reads them, analyzes each, and emits results. */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     const allResults: ScanResult[] = [];
     const files = this.findFiles();
-    const filteredFiles = this.filterExcluded(files);
+    const filteredFiles = this.filterExcluded(files).filter(f => this.isWithinTarget(f));
 
     for (const file of filteredFiles) {
       try {

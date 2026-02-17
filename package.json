@@ -8,7 +8,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Herramienta de Verificación de Calidad y Seguridad para CGE (Vibe Coding QA)",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.41",
     "@types/node": "^25.2.3",

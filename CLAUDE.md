@@ -10,10 +10,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run the tool against a target project
-npx ts-node src/index.ts --path <directory>
+npx ts-node src/main/index.ts --path <directory>
 
 # Run with file/folder exclusions
-npx ts-node src/index.ts --path <directory> --exclude 'node_modules,dist,*.test.ts'
+npx ts-node src/main/index.ts --path <directory> --exclude 'node_modules,dist,*.test.ts'
 
 # Install dependencies
 npm install
@@ -26,7 +26,7 @@ npx tsc
 
 ## Architecture
 
-**Entry point**: `src/index.ts` — Commander.js CLI that parses `--path` argument and delegates to Orchestrator.
+**Entry point**: `src/main/index.ts` — Commander.js CLI that parses `--path` argument and delegates to Orchestrator.
 
 **Core layer** (`src/core/`):
 - `Orchestrator.ts` — Coordinates detection and scanning, prints color-coded results in real-time via callbacks, and triggers Markdown export at the end
@@ -43,7 +43,7 @@ npx tsc
 
 **Placeholder directories**: `src/cli/`, `src/rules/`, `src/utils/` exist but are empty (planned for future use).
 
-**Test fixtures**: `projectsTests/` contains sample projects for validation. `vulnerable_code.js` and `src/middleware/auth.js` are intentionally vulnerable test files.
+**Test fixtures**: `projectsTests/` contains sample projects for validation.
 
 ## Key Patterns
 

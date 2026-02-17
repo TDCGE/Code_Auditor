@@ -1,4 +1,4 @@
-import { BaseScanner } from '../../scanners/BaseScanner';
+import { BaseScanner } from '../../scanner/BaseScanner';
 
 export type ScannerFactory = (targetPath: string, excludePatterns: string[]) => BaseScanner;
 

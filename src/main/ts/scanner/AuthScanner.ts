@@ -1,6 +1,7 @@
 import { BaseScanner } from './BaseScanner';
-import { ScanResult } from '../types';
+import { ScanResult, createScanResult } from '../types';
 import { IAIClient } from '../core/ai/IAIClient';
+import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../core/ai/AIUtils';
 import { globSync } from 'glob';
 import path from 'path';
 
@@ -17,7 +18,7 @@ export class AuthScanner extends BaseScanner {
   }
 
   protected findFiles(): string[] {
-    return globSync('**/{auth,login,session,middleware,security,config}*.{ts,js,py,java}', {
+    return globSync('**/{auth,login,session,middleware,security,config,user,permission,role,token,oauth,passport,guard,policy,route,api,controller,jwt,access}*.{ts,js,py,java}', {
       cwd: this.targetPath,
       ignore: ['**/node_modules/**', '**/dist/**'],
       nodir: true,
@@ -26,7 +27,14 @@ export class AuthScanner extends BaseScanner {
   }
 
   protected async analyzeFile(filePath: string, content: string): Promise<ScanResult[]> {
-    const prompt = `
+    const chunks = chunkContent(content);
+    const results: ScanResult[] = [];
+
+    for (const chunk of chunks) {
+      try {
+        const wrappedCode = wrapCodeForPrompt(chunk.text, path.basename(filePath));
+
+        const prompt = `
       Actúa como un Experto en Ciberseguridad (OWASP).
       Analiza el código de "${path.basename(filePath)}" buscando fallos CRÍTICOS de Autenticación/Autorización.
 
@@ -49,31 +57,39 @@ export class AuthScanner extends BaseScanner {
       }
       Si es seguro, "issues": [].
 
-      CÓDIGO:
-      ${content.substring(0, 5000)}
+      ${wrappedCode}
     `;
 
-    const aiResponse = await this.aiClient.sendPrompt(prompt);
+        const rawResponse = await this.aiClient.sendPrompt(prompt);
+        const aiResponse = validateAIResponse(rawResponse);
 
-    return aiResponse.issues.map(issue => ({
-      file: this.relativePath(filePath),
-      line: 1,
-      message: `[${issue.category}] ${issue.message}. Sugerencia: ${issue.suggestion}`,
-      severity: issue.severity,
-      rule: 'auth-security-best-practices'
-    }));
+        for (const issue of aiResponse.issues) {
+          results.push(createScanResult({
+            file: this.relativePath(filePath),
+            message: `[${issue.category}] ${issue.message}. Sugerencia: ${issue.suggestion}`,
+            severity: issue.severity,
+            rule: 'auth-security-best-practices',
+            suggestion: issue.suggestion,
+          }));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[AuthScanner] Error analizando chunk de ${path.basename(filePath)}: ${msg}`);
+      }
+    }
+
+    return results;
   }
 
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     if (!this.aiClient.hasKey()) {
-      const warning: ScanResult = {
+      const warning = createScanResult({
         file: 'N/A',
-        line: 0,
         message: 'Cliente de IA no disponible. El análisis de autenticación fue omitido.',
         severity: 'LOW',
         rule: 'ai-client-unavailable',
-        suggestion: 'Configure AI_PROVIDER y las credenciales correspondientes para habilitar este escáner.'
-      };
+        suggestion: 'Configure AI_PROVIDER y las credenciales correspondientes para habilitar este escáner.',
+      });
       if (onResult) onResult(warning);
       return [warning];
     }

@@ -1,6 +1,7 @@
 import { BaseScanner } from './BaseScanner';
-import { ScanResult } from '../types';
+import { ScanResult, createScanResult } from '../types';
 import { IAIClient } from '../core/ai/IAIClient';
+import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../core/ai/AIUtils';
 import { globSync } from 'glob';
 import path from 'path';
 
@@ -27,9 +28,14 @@ export class ArchitectureScanner extends BaseScanner {
   }
 
   protected async analyzeFile(filePath: string, content: string): Promise<ScanResult[]> {
-    if (content.length > 10000) return [];
+    const chunks = chunkContent(content);
+    const results: ScanResult[] = [];
 
-    const prompt = `
+    for (const chunk of chunks) {
+      try {
+        const wrappedCode = wrapCodeForPrompt(chunk.text, path.basename(filePath));
+
+        const prompt = `
       Actúa como Arquitecto de Software Senior.
       Analiza "${path.basename(filePath)}" buscando:
       1. Violaciones SOLID.
@@ -48,32 +54,40 @@ export class ArchitectureScanner extends BaseScanner {
         ]
       }
 
-      CÓDIGO:
-      ${content.substring(0, 5000)}
+      ${wrappedCode}
     `;
 
-    const aiResponse = await this.aiClient.sendPrompt(prompt, { useSkills: true });
+        const rawResponse = await this.aiClient.sendPrompt(prompt, { useSkills: true });
+        const aiResponse = validateAIResponse(rawResponse);
 
-    return aiResponse.issues.map(issue => ({
-      file: this.relativePath(filePath),
-      line: 1,
-      message: `${issue.category}: ${issue.message}. Sugerencia: ${issue.suggestion}`,
-      severity: issue.severity,
-      rule: 'ai-architecture-review'
-    }));
+        for (const issue of aiResponse.issues) {
+          results.push(createScanResult({
+            file: this.relativePath(filePath),
+            message: `${issue.category}: ${issue.message}. Sugerencia: ${issue.suggestion}`,
+            severity: issue.severity,
+            rule: 'ai-architecture-review',
+            suggestion: issue.suggestion,
+          }));
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[ArchitectureScanner] Error analizando chunk de ${path.basename(filePath)}: ${msg}`);
+      }
+    }
+
+    return results;
   }
 
   /** Override scan to: (1) guard hasKey, (2) run analyzeStructure, (3) delegate file analysis to super. */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     if (!this.aiClient.hasKey()) {
-      const warning: ScanResult = {
+      const warning = createScanResult({
         file: 'N/A',
-        line: 0,
         message: 'Cliente de IA no disponible. El análisis de arquitectura fue omitido.',
         severity: 'LOW',
         rule: 'ai-client-unavailable',
-        suggestion: 'Configure AI_PROVIDER y las credenciales correspondientes para habilitar este escáner.'
-      };
+        suggestion: 'Configure AI_PROVIDER y las credenciales correspondientes para habilitar este escáner.',
+      });
       if (onResult) onResult(warning);
       return [warning];
     }
@@ -131,17 +145,17 @@ export class ArchitectureScanner extends BaseScanner {
           Si la estructura se ve bien (tiene carpetas claras como src, internal, pkg, api, etc), devuelve "issues": [].
       `;
 
-      const aiResponse = await this.aiClient.sendPrompt(prompt, { useSkills: true });
+      const rawResponse = await this.aiClient.sendPrompt(prompt, { useSkills: true });
+      const aiResponse = validateAIResponse(rawResponse);
 
       aiResponse.issues.forEach(issue => {
-        const result: ScanResult = {
-          file: "RAÍZ_DEL_PROYECTO",
-          line: 0,
-          message: `[${issue.category}] ${issue.message}.`,
+        const result = createScanResult({
+          file: 'RAÍZ_DEL_PROYECTO',
+          message: `[${issue.category}] ${issue.message}.\n💡 RECOMENDACIÓN: ${issue.suggestion}`,
           severity: issue.severity,
-          rule: 'project-structure-check'
-        };
-        result.message += `\n💡 RECOMENDACIÓN: ${issue.suggestion}`;
+          rule: 'project-structure-check',
+          suggestion: issue.suggestion,
+        });
 
         results.push(result);
         if (onResult) onResult(result);

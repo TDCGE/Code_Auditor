@@ -1,5 +1,5 @@
 import { BaseScanner } from './BaseScanner';
-import { ScanResult } from '../types';
+import { ScanResult, createScanResult } from '../types';
 import { globSync } from 'glob';
 
 const patterns = [
@@ -39,13 +39,13 @@ export class SecretScanner extends BaseScanner {
 
       for (const pattern of patterns) {
         if (pattern.regex.test(lineContent)) {
-          results.push({
+          results.push(createScanResult({
             file: this.relativePath(filePath),
             line: index + 1,
             message: `Detectado ${pattern.name}`,
             severity: pattern.severity,
-            rule: 'no-hardcoded-secrets'
-          });
+            rule: 'no-hardcoded-secrets',
+          }));
         }
       }
     });
