@@ -1,4 +1,4 @@
-import { ScanResult } from '../../scanners/ScanResult';
+import { ScanResult } from '../../types';
 
 export interface ResultReporter {
   printResult(result: ScanResult): void;

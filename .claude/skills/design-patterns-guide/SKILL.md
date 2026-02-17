@@ -5,6 +5,7 @@ description: >
   Use when writing new code, refactoring, reviewing architecture, or designing classes and interfaces.
   Guides pattern selection, validates implementations, and suggests improvements based on
   established design principles.
+user-invocable: true
 ---
 
 # Guia de Patrones de Diseno y Principios SOLID

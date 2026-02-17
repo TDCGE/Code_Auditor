@@ -1,5 +1,5 @@
 import { BaseScanner } from './BaseScanner';
-import { ScanResult } from './ScanResult';
+import { ScanResult } from '../types';
 import { globSync } from 'glob';
 
 const patterns = [
@@ -10,23 +10,20 @@ const patterns = [
 ];
 
 export class SecretScanner extends BaseScanner {
-  constructor(targetPath: string, excludePatterns: string[] = []) {
-    super(targetPath, excludePatterns);
-  }
-
   getName(): string {
     return 'Escáner de Secretos (Credenciales Hardcodeadas)';
   }
 
   protected findFiles(): string[] {
+    // Hardcoded ignores are for glob performance (large directories).
+    // User-provided --exclude patterns are applied separately in BaseScanner.filterExcluded().
     return globSync('**/*.{js,ts,py,java,json,xml,yml,yaml,env}', {
       cwd: this.targetPath,
       ignore: [
         '**/node_modules/**',
         '**/.git/**',
         '**/dist/**',
-        '**/.idea/**',
-        '**/src/scanner/**'
+        '**/.idea/**'
       ],
       nodir: true,
       absolute: true
@@ -38,10 +35,10 @@ export class SecretScanner extends BaseScanner {
     const lines = content.split(/\r?\n/);
 
     lines.forEach((lineContent, index) => {
+      if (lineContent.includes('process.env')) return;
+
       for (const pattern of patterns) {
         if (pattern.regex.test(lineContent)) {
-          if (lineContent.includes('process.env')) return;
-
           results.push({
             file: this.relativePath(filePath),
             line: index + 1,

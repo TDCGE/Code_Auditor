@@ -1,5 +1,5 @@
 import { BaseScanner } from './BaseScanner';
-import { ScanResult } from './ScanResult';
+import { ScanResult } from '../types';
 import { IAIClient } from '../core/ai/IAIClient';
 import { globSync } from 'glob';
 import path from 'path';
@@ -66,7 +66,16 @@ export class ArchitectureScanner extends BaseScanner {
   /** Override scan to: (1) guard hasKey, (2) run analyzeStructure, (3) delegate file analysis to super. */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     if (!this.aiClient.hasKey()) {
-      return [];
+      const warning: ScanResult = {
+        file: 'N/A',
+        line: 0,
+        message: 'Cliente de IA no disponible. El análisis de arquitectura fue omitido.',
+        severity: 'LOW',
+        rule: 'ai-client-unavailable',
+        suggestion: 'Configure AI_PROVIDER y las credenciales correspondientes para habilitar este escáner.'
+      };
+      if (onResult) onResult(warning);
+      return [warning];
     }
 
     // 1. Análisis de Estructura (Nivel Proyecto)

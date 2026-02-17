@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import {ScanResult} from '../../scanners/ScanResult';
+import {ScanResult} from '../../types';
 import {ResultReporter} from './ResultReporter';
 import {ScannerSection} from "../scanner/ScannerSection";
 
@@ -92,6 +92,11 @@ export class ConsoleReporter implements ResultReporter {
         if (sugIdx !== -1) {
           suggestion = mainMessage.substring(sugIdx + '. Sugerencia: '.length);
           mainMessage = mainMessage.substring(0, sugIdx + 1); // conservar el punto
+        }
+
+        // 3. Fallback al campo suggestion del ScanResult
+        if (!suggestion && r.suggestion) {
+          suggestion = r.suggestion;
         }
 
         // 3. Separar título de descripción en el primer ': '

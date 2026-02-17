@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import micromatch from 'micromatch';
-import { ScanResult } from './ScanResult'
+import { ScanResult } from '../types'
 
 export abstract class BaseScanner {
   protected targetPath: string;

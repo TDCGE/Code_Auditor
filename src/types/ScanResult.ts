@@ -1,7 +1,10 @@
+import { Severity } from './Severity';
+
 export interface ScanResult {
     file: string;
     line: number;
     message: string;
-    severity: 'HIGH' | 'MEDIUM' | 'LOW';
+    severity: Severity;
     rule: string;
+    suggestion?: string;
 }

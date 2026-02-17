@@ -1,4 +1,4 @@
-import {ScanResult} from "../../scanners/ScanResult";
+import {ScanResult} from '../../types';
 
 export interface ScannerSection {
     scanner: string;

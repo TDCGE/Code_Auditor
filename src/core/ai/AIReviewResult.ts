@@ -1,6 +1,8 @@
+import { Severity } from '../../types';
+
 export interface AIReviewResult {
     issues: {
-        severity: 'HIGH' | 'MEDIUM' | 'LOW';
+        severity: Severity;
         category: 'Architecture' | 'Security' | 'Best Practices' | string;
         message: string;
         suggestion: string;
