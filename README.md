@@ -43,7 +43,7 @@ AI_PROVIDER=gemini
 ## Uso
 
 ```bash
-npx ts-node src/index.ts --path <directorio-a-analizar>
+npx ts-node src/main/index.ts --path <directorio-a-analizar>
 ```
 
 ### Opciones
@@ -57,16 +57,16 @@ npx ts-node src/index.ts --path <directorio-a-analizar>
 
 ```bash
 # Analizar un proyecto excluyendo carpetas de pruebas y build
-npx ts-node src/index.ts -p ./mi-proyecto --exclude 'test,dist,build'
+npx ts-node src/main/index.ts -p ./mi-proyecto --exclude 'test,dist,build'
 
 # Analizar excluyendo todos los archivos de test
-npx ts-node src/index.ts --exclude '*.test.ts,*.spec.ts'
+npx ts-node src/main/index.ts --exclude '*.test.ts,*.spec.ts'
 
 # Analizar con exclusiones múltiples
-npx ts-node src/index.ts -p ../otro-proyecto --exclude 'vendor,temp,*.log'
+npx ts-node src/main/index.ts -p ../otro-proyecto --exclude 'vendor,temp,*.log'
 
 # Analizar el directorio actual sin exclusiones
-npx ts-node src/index.ts
+npx ts-node src/main/index.ts
 ```
 
 ## Escáneres incluidos
@@ -97,26 +97,67 @@ Análisis de archivos de auth, login, session, middleware, security y config:
 - Rutas sin protección o sin control de roles
 - Cookies de sesión inseguras
 
-## Reporte Markdown
+## Reporte de Auditoría
 
-Al finalizar el análisis, la herramienta genera automáticamente un reporte en formato Markdown en:
+Al finalizar el análisis, la herramienta genera automáticamente una carpeta de auditoría versionada:
 
 ```
-<directorio-analizado>/analysisByVCV/analysis.md
+<directorio-analizado>/audit/
+  suppressions.json        # Supresiones de falsos positivos (opcional)
+  v1/
+    audit.md               # Reporte principal de hallazgos
+    review-log.md          # Tabla de revisión manual
+    changelog.md           # Registro de correcciones
+  v2/
+    ...
 ```
 
-El reporte incluye:
-- Fecha y directorio analizado
-- Todos los hallazgos agrupados por escáner, con severidad, archivo, línea y regla
-- Tabla resumen con conteo por severidad
+Cada ejecución crea una nueva carpeta versionada (`v1`, `v2`, ...) con auto-incremento:
+
+- **audit.md** -- Reporte completo con hallazgos agrupados por escáner, severidad, archivo, línea, regla, sugerencias y tabla resumen
+- **review-log.md** -- Tabla para revisión manual donde cada hallazgo puede marcarse como "Confirmado", "Falso positivo", "Por solucionar" o "Resuelto"
+- **changelog.md** -- Plantilla para documentar las correcciones aplicadas a cada hallazgo
+
+## Sistema de Supresiones
+
+Permite suprimir falsos positivos para que no aparezcan en ejecuciones futuras.
+
+**Ubicación:** `<directorio-analizado>/audit/suppressions.json`
+
+**Formato:**
+
+```json
+{
+  "suppressions": [
+    {
+      "rule": "hardcoded-secret",
+      "filePattern": "**/config/constants.ts",
+      "messageContains": "EXAMPLE_KEY",
+      "reason": "Valor de ejemplo, no es un secreto real",
+      "source": "review-log-v1"
+    }
+  ],
+  "considerations": []
+}
+```
+
+| Campo | Requerido | Descripción |
+|-------|-----------|-------------|
+| `rule` | Si | Nombre de la regla a suprimir |
+| `filePattern` | No | Patrón glob para filtrar por archivo |
+| `messageContains` | No | Texto que debe contener el mensaje del hallazgo |
+| `reason` | Si | Justificación de la supresión |
+| `source` | No | Origen de la supresión (ej: `review-log-v1`) |
+
+**Importación automática:** Los hallazgos marcados como "Falso positivo" en `review-log.md` de versiones anteriores se importan automáticamente como supresiones en la siguiente ejecución.
 
 ## Severidades
 
 Los hallazgos se clasifican en tres niveles, mostrados con colores en la terminal:
 
-- **ALTO** (rojo) -- Problemas críticos que requieren atención inmediata
-- **MEDIO** (amarillo) -- Problemas que deberían resolverse pronto
-- **BAJO** (azul) -- Sugerencias de mejora y buenas prácticas
+- **CRITICO** (rojo) -- Vulnerabilidad explotable que requiere corrección inmediata
+- **MEDIO** (amarillo) -- Mala práctica con riesgo potencial de seguridad o mantenibilidad
+- **BAJO** (azul) -- Sugerencia de mejora sin riesgo inmediato
 
 ## Stacks soportados
 
@@ -134,20 +175,62 @@ Si no se detecta ninguno, el proyecto se escanea igualmente.
 
 ```
 src/
-├── index.ts                 # CLI (Commander.js)
-├── core/
-│   ├── Orchestrator.ts      # Coordina escaneo y resultados
-│   ├── Detector.ts          # Detecta stacks tecnológicos
-│   ├── AIClientFactory.ts   # Factory para proveedores de IA
-│   ├── GeminiAIClient.ts    # Cliente Gemini
-│   ├── ClaudeAIClient.ts    # Cliente Claude (Agent SDK)
-│   ├── IAIClient.ts         # Interfaz común de IA
-│   ├── ScannerRegistry.ts   # Registro de escáneres
-│   ├── ResultReporter.ts    # Interfaz de reporte (con export a Markdown)
-│   └── ConsoleReporter.ts   # Reporte por consola + export a .md
-└── scanners/
-    ├── BaseScanner.ts       # Clase base abstracta
-    ├── SecretScanner.ts     # Detección de secretos (regex)
-    ├── AuthScanner.ts       # Auditoría de auth (IA)
-    └── ArchitectureScanner.ts # Revisión arquitectónica (IA)
+└── main/
+    ├── index.ts                          # CLI (Commander.js)
+    └── ts/
+        ├── cli/                          # Bootstrap, banner, configuración
+        │   ├── Application.ts            # Punto de arranque de la app
+        │   ├── Banner.ts                 # Banner de bienvenida
+        │   ├── CLIOptions.ts             # Definición de opciones CLI
+        │   ├── index.ts                  # Re-exports del módulo cli
+        │   └── config/                   # Carga de configuración
+        │       ├── IConfigLoader.ts      # Interfaz de config loader
+        │       └── DotenvConfigLoader.ts # Implementación con dotenv
+        ├── core/                         # Lógica central
+        │   ├── Orchestrator.ts           # Coordina escaneo y resultados
+        │   ├── ai/                       # Clientes IA
+        │   │   ├── IAIClient.ts          # Interfaz común (Strategy)
+        │   │   ├── AIReviewResult.ts     # Tipo de resultado IA
+        │   │   ├── AIUtils.ts            # Utilidades compartidas
+        │   │   ├── GeminiAIClient.ts     # Implementación Gemini
+        │   │   ├── ClaudeAIClient.ts     # Implementación Claude SDK
+        │   │   └── factory/              # Abstract Factory de clientes IA
+        │   │       ├── AIClientFactory.ts
+        │   │       ├── AIClientProvider.ts
+        │   │       ├── ClaudeClient.ts
+        │   │       └── GeminiClient.ts
+        │   ├── detector/                 # Detección de stacks tecnológicos
+        │   │   ├── Detector.ts
+        │   │   └── DetectedStack.ts
+        │   ├── reporter/                 # Reportes consola + Markdown
+        │   │   ├── ResultReporter.ts     # Interfaz de reporte
+        │   │   ├── ConsoleReporter.ts    # Consola + export a .md
+        │   │   └── AuditVersionManager.ts # Versionado de auditorías
+        │   ├── scanner/                  # Registry + tipos de escáneres
+        │   │   ├── ScannerRegistry.ts    # Registro de factories (Registry)
+        │   │   └── ScannerSection.ts     # Tipo sección de escáner
+        │   └── suppression/              # Sistema de supresiones
+        │       ├── SuppressionEntry.ts   # Tipos de supresión
+        │       └── SuppressionManager.ts # Carga, evalúa y persiste supresiones
+        ├── scanner/                      # Implementaciones de escáneres
+        │   ├── BaseScanner.ts            # Clase base abstracta (Template Method)
+        │   ├── SecretScanner.ts          # Detección de secretos (regex)
+        │   ├── AuthScanner.ts            # Auditoría de auth (IA)
+        │   └── ArchitectureScanner.ts    # Revisión arquitectónica (IA)
+        └── types/                        # Tipos compartidos
+            ├── index.ts                  # Re-exports
+            ├── ScanResult.ts             # Tipo resultado de escaneo
+            └── Severity.ts               # Niveles de severidad + metadata
 ```
+
+## Patrones de Diseño
+
+El proyecto implementa los siguientes patrones GoF:
+
+| Patrón | Implementación | Archivo clave |
+|--------|---------------|---------------|
+| Template Method | `BaseScanner.scan()` define el flujo `findFiles()` → `analyzeFile()` | `scanner/BaseScanner.ts` |
+| Abstract Factory | `AIClientFactory` + fábricas concretas `ClaudeClient` / `GeminiClient` | `core/ai/factory/` |
+| Strategy | `IAIClient` interfaz con implementaciones intercambiables | `core/ai/IAIClient.ts` |
+| Registry | `ScannerRegistry` registra factories de escáneres | `core/scanner/ScannerRegistry.ts` |
+| Observer/Callback | `scan(onResult)` emite resultados en tiempo real | `BaseScanner.ts` + `Orchestrator.ts` |
