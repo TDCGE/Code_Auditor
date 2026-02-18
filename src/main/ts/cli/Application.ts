@@ -1,14 +1,17 @@
 import { CLIOptions } from './CLIOptions';
 import { IConfigLoader } from './config/IConfigLoader';
 import { DotenvConfigLoader } from './config/DotenvConfigLoader';
-import { createFromProvider } from '../core/ai/factory/AIClientProvider';
-import { ScannerRegistry } from '../core/scanner/ScannerRegistry';
+import { createFromProvider } from '../model/ai/factory/AIClientProvider';
+import { ScannerRegistry } from '../model/scanner/ScannerRegistry';
 import { SecretScanner } from '../scanner/SecretScanner';
 import { ArchitectureScanner } from '../scanner/ArchitectureScanner';
 import { AuthScanner } from '../scanner/AuthScanner';
-import { ConsoleReporter } from '../core/reporter/ConsoleReporter';
-import { Orchestrator } from '../core/Orchestrator';
-import { Detector } from '../core/detector/Detector';
+import { ConsoleReporter } from '../model/reporter/ConsoleReporter';
+import { JsonReporter } from '../model/reporter/JsonReporter';
+import { Orchestrator } from '../model/Orchestrator';
+import { Detector } from '../model/detector/Detector';
+import { GuidelinesLoader } from '../model/guidelines/GuidelinesLoader';
+import { ResultReporter } from '../model/reporter/ResultReporter';
 import chalk from 'chalk';
 import { Banner } from './Banner';
 
@@ -18,7 +21,18 @@ export class Application {
       ? options.exclude.split(',').map((p: string) => p.trim()).filter(Boolean)
       : [];
 
-    const aiClient = createFromProvider(process.env.AI_PROVIDER);
+    // Cargar guidelines del proyecto auditado
+    const guidelines = GuidelinesLoader.load(options.path);
+    if (guidelines.found) {
+      console.log(chalk.green(`[+] Guidelines cargadas desde: ${guidelines.filePath}`));
+    } else {
+      console.log(chalk.gray(`[i] No se encontró guidelines.md en el proyecto. Auditoría sin contexto de guidelines.`));
+    }
+
+    // Crear AI client con contexto de guidelines
+    const aiClient = createFromProvider(process.env.AI_PROVIDER, {
+      guidelines: guidelines.found ? guidelines.raw : undefined,
+    });
 
     const registry = new ScannerRegistry();
     registry.register((p, excl) => new SecretScanner(p, excl));
@@ -26,7 +40,13 @@ export class Application {
     registry.register((p, excl) => new AuthScanner(p, aiClient, excl));
 
     const scanners = registry.createScanners(options.path, excludePatterns);
-    const reporter = new ConsoleReporter();
+
+    // Componer reporter (Decorator pattern para JSON output)
+    let reporter: ResultReporter = new ConsoleReporter(guidelines.found);
+    if (options.outputJson) {
+      reporter = new JsonReporter(reporter, options.outputJson);
+    }
+
     const detector = new Detector(options.path, excludePatterns);
     const orchestrator = new Orchestrator(detector, scanners, reporter);
     await orchestrator.start();

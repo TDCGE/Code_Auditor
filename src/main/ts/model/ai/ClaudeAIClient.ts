@@ -27,6 +27,11 @@ const AI_REVIEW_SCHEMA = {
 
 export class ClaudeAIClient implements IAIClient {
   private available: boolean | null = null;
+  private readonly guidelines: string;
+
+  constructor(guidelines?: string) {
+    this.guidelines = guidelines ?? '';
+  }
 
   public hasKey(): boolean {
     if (this.available !== null) return this.available;
@@ -82,6 +87,22 @@ export class ClaudeAIClient implements IAIClient {
     return this.callClaude(prompt, options?.useSkills ?? false);
   }
 
+  private buildGuidelinesBlock(): string {
+    if (!this.guidelines) return '';
+    return `
+
+CONTEXTO IMPORTANTE - GUIDELINES DEL PROYECTO:
+El siguiente documento contiene las decisiones de arquitectura, patrones de diseño,
+principios y seguridad que fueron establecidas durante el desarrollo inicial.
+Tu auditoría DEBE ser coherente con estas guidelines. NO contradigas lo que fue
+recomendado previamente. Si encuentras una desviación de las guidelines, repórtala
+como tal (no como un error genérico).
+
+--- INICIO GUIDELINES ---
+${this.guidelines}
+--- FIN GUIDELINES ---`;
+  }
+
   private async callClaude(prompt: string, useSkills: boolean = false): Promise<AIReviewResult> {
     try {
       // Permitir ejecución desde dentro de una sesión de Claude Code
@@ -89,10 +110,11 @@ export class ClaudeAIClient implements IAIClient {
 
       const { query } = await importESM('@anthropic-ai/claude-agent-sdk');
       const verificatorRoot = path.resolve(__dirname, '..', '..');
+      const guidelinesBlock = this.buildGuidelinesBlock();
 
       const baseOptions = {
         systemPrompt: `Eres un experto en Seguridad OWASP y Arquitectura de Software.
-Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.`,
+Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.${guidelinesBlock}`,
         maxTurns: 20,
         allowedTools: [] as string[],
         outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },
@@ -104,7 +126,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerenci
         systemPrompt: `Eres un Arquitecto de Software Senior y Experto en Seguridad OWASP.
 Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.
 IMPORTANTE: Invoca la skill "design-patterns-guide" para enriquecer tu análisis
-con patrones GoF y principios SOLID.`,
+con patrones GoF y principios SOLID.${guidelinesBlock}`,
         maxTurns: 20,
         allowedTools: ['Skill', 'Read', 'Glob'],
         outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },

@@ -10,6 +10,7 @@ program
     .description(description)
     .option('-p, --path <directory>', 'Ruta del directorio a escanear', '.')
     .option('-e, --exclude <patterns>', 'Patrones glob separados por comas para excluir archivos/carpetas (ej: "node_modules,dist,*.test.ts")', '')
+    .option('--output-json <path>', 'Ruta donde escribir un resumen JSON para consumo programático (CI/CD)')
     .action(async (opts: CLIOptions) => Application.bootstrap(opts));
 
 program.parseAsync(process.argv).catch((err: unknown): void => {

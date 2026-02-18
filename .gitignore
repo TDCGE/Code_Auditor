@@ -3,11 +3,11 @@
 **/audit/
 
 # Documentation for design patterns
-documents/desing-patterns/design-patterns.pdf
+docs/desing-patterns/design-patterns.pdf
 design-patterns-divided
 
 # Documentation for Claude Skills
-documents/skills-documentation/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+docs/skills-documentation/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
 
 # Vulnerable code for testing
 projectsTests

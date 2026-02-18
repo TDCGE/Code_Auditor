@@ -16,6 +16,11 @@ export class ConsoleReporter implements ResultReporter {
   private currentScanner = '';
   private sections: ScannerSection[] = [];
   private suppressedCount = 0;
+  private readonly guidelinesUsed: boolean;
+
+  constructor(guidelinesUsed: boolean = false) {
+    this.guidelinesUsed = guidelinesUsed;
+  }
 
   setSuppressedCount(count: number): void {
     this.suppressedCount = count;
@@ -75,7 +80,8 @@ export class ConsoleReporter implements ResultReporter {
 
     let md = `# Reporte de Análisis - CGE-Verificator\n\n`;
     md += `**Fecha:** ${timestamp}\n`;
-    md += `**Directorio analizado:** ${targetPath}\n\n`;
+    md += `**Directorio analizado:** ${targetPath}\n`;
+    md += `**Guidelines del proyecto:** ${this.guidelinesUsed ? 'Sí — auditoría alineada con guidelines.md' : 'No — auditoría sin contexto de guidelines'}\n\n`;
     md += `---\n\n`;
 
     let totalHigh = 0;

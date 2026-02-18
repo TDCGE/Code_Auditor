@@ -1,0 +1,36 @@
+# =============================================================================
+# CGE-Verificator — Ejemplo de workflow para GitHub Actions
+# =============================================================================
+# Copie este archivo a su repositorio como .github/workflows/vcv-audit.yml
+# y configure los secrets necesarios.
+#
+# Requisitos:
+#   - Secret GEMINI_API_KEY (si usa ai_provider: gemini)
+#   - O Secret ANTHROPIC_API_KEY (si usa ai_provider: claude)
+# =============================================================================
+
+name: VCV Audit
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # Necesario para comentar en el PR
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Ejecutar CGE-Verificator
+        uses: user/vibeCodingVerificator@main
+        with:
+          path: '.'
+          exclude: 'node_modules,dist,coverage'
+          ai_provider: 'gemini'
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          # claude_api_key: ${{ secrets.ANTHROPIC_API_KEY }}  # Descomentar si usa Claude

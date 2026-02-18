@@ -1,7 +1,7 @@
 import { BaseScanner } from './BaseScanner';
 import { ScanResult, createScanResult } from '../types';
-import { IAIClient } from '../core/ai/IAIClient';
-import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../core/ai/AIUtils';
+import { IAIClient } from '../model/ai/IAIClient';
+import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../model/ai/AIUtils';
 import { globSync } from 'glob';
 import path from 'path';
 

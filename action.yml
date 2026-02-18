@@ -1,0 +1,150 @@
+name: 'CGE-Verificator'
+description: 'Auditoría de calidad y seguridad para proyectos de vibe coding'
+
+inputs:
+  path:
+    description: 'Directorio a escanear'
+    required: false
+    default: '.'
+  exclude:
+    description: 'Patrones glob separados por comas para excluir'
+    required: false
+    default: ''
+  ai_provider:
+    description: 'Proveedor de IA (gemini o claude)'
+    required: false
+    default: 'gemini'
+  gemini_api_key:
+    description: 'API Key de Google Gemini'
+    required: false
+  claude_api_key:
+    description: 'API Key de Anthropic (si se usa Claude en CI)'
+    required: false
+
+outputs:
+  report_path:
+    description: 'Ruta del directorio de reportes generado'
+    value: ${{ steps.audit.outputs.report_path }}
+  has_critical:
+    description: 'true si se encontraron issues HIGH'
+    value: ${{ steps.audit.outputs.has_critical }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: npm ci
+      working-directory: ${{ github.action_path }}
+      shell: bash
+
+    - name: Run audit
+      id: audit
+      run: |
+        export AI_PROVIDER="${{ inputs.ai_provider }}"
+        export GEMINI_API_KEY="${{ inputs.gemini_api_key }}"
+        export ANTHROPIC_API_KEY="${{ inputs.claude_api_key }}"
+
+        JSON_OUTPUT="${{ runner.temp }}/vcv-output.json"
+
+        npx ts-node "${{ github.action_path }}/src/main/index.ts" \
+          --path "${{ inputs.path }}" \
+          --exclude "${{ inputs.exclude }}" \
+          --output-json "$JSON_OUTPUT"
+
+        # Parse JSON output and set step outputs
+        if [ -f "$JSON_OUTPUT" ]; then
+          HAS_CRITICAL=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$JSON_OUTPUT','utf-8')).hasCritical)")
+          REPORT_PATH=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$JSON_OUTPUT','utf-8')).reportPath)")
+          echo "has_critical=$HAS_CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "report_path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
+          echo "json_output=$JSON_OUTPUT" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const jsonPath = '${{ steps.audit.outputs.json_output || format('{0}/vcv-output.json', runner.temp) }}';
+
+          if (!fs.existsSync(jsonPath)) {
+            console.log('No JSON output found, skipping PR comment');
+            return;
+          }
+
+          const report = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+          const { hasCritical, total, counts, issues } = report;
+
+          const statusIcon = hasCritical ? '🔴' : (total > 0 ? '🟡' : '🟢');
+          const statusText = hasCritical
+            ? 'Se encontraron problemas **CRÍTICOS**'
+            : (total > 0 ? 'Se encontraron hallazgos (sin críticos)' : 'Código seguro');
+
+          let body = `## ${statusIcon} CGE-Verificator — Reporte de Auditoría\n\n`;
+          body += `${statusText}\n\n`;
+          body += `| Severidad | Cantidad |\n`;
+          body += `|-----------|----------|\n`;
+          body += `| 🔴 ALTO   | ${counts.HIGH} |\n`;
+          body += `| 🟡 MEDIO  | ${counts.MEDIUM} |\n`;
+          body += `| 🔵 BAJO   | ${counts.LOW} |\n`;
+          body += `| **Total** | **${total}** |\n\n`;
+
+          if (issues.length > 0) {
+            body += `### Top hallazgos\n\n`;
+            const topIssues = issues
+              .sort((a, b) => {
+                const order = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+                return (order[a.severity] ?? 3) - (order[b.severity] ?? 3);
+              })
+              .slice(0, 10);
+            for (const issue of topIssues) {
+              const sev = { HIGH: '🔴', MEDIUM: '🟡', LOW: '🔵' }[issue.severity] || '⚪';
+              const loc = issue.line ? `${issue.file}:${issue.line}` : issue.file;
+              body += `- ${sev} **${loc}** — ${issue.message}\n`;
+            }
+            body += `\n`;
+          }
+
+          body += `> 📎 Reporte completo disponible como artifact: **vcv-audit-report**\n`;
+          body += `> 🤖 Generado por [CGE-Verificator](https://github.com/user/vibeCodingVerificator)\n`;
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const existing = comments.find(c =>
+            c.body && c.body.includes('CGE-Verificator — Reporte de Auditoría')
+          );
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+          }
+
+    - name: Upload report artifact
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: vcv-audit-report
+        path: ${{ inputs.path }}/audit/
+        if-no-files-found: ignore

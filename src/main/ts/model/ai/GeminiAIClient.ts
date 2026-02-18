@@ -7,9 +7,11 @@ dotenv.config();
 
 export class GeminiAIClient implements IAIClient {
   private readonly apiKey: string | undefined;
+  private readonly guidelines: string;
 
-  constructor() {
+  constructor(guidelines?: string) {
     this.apiKey = process.env.GEMINI_API_KEY;
+    this.guidelines = guidelines ?? '';
   }
 
   public hasKey(): boolean {
@@ -57,9 +59,27 @@ export class GeminiAIClient implements IAIClient {
     return this.callGeminiAPI(prompt);
   }
 
+  private buildGuidelinesBlock(): string {
+    if (!this.guidelines) return '';
+    return `
+CONTEXTO IMPORTANTE - GUIDELINES DEL PROYECTO:
+El siguiente documento contiene las decisiones de arquitectura, patrones de diseño,
+principios y seguridad que fueron establecidas durante el desarrollo inicial.
+Tu auditoría DEBE ser coherente con estas guidelines. NO contradigas lo que fue
+recomendado previamente. Si encuentras una desviación de las guidelines, repórtala
+como tal (no como un error genérico).
+
+--- INICIO GUIDELINES ---
+${this.guidelines}
+--- FIN GUIDELINES ---
+
+`;
+  }
+
   private async callGeminiAPI(prompt: string): Promise<AIReviewResult> {
+    const fullPrompt = this.buildGuidelinesBlock() + prompt;
     const payload = {
-      contents: [{ parts: [{ text: prompt }] }]
+      contents: [{ parts: [{ text: fullPrompt }] }]
     };
 
     const data = JSON.stringify(payload);

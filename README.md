@@ -1,6 +1,6 @@
 # CGE-Verificator
 
-Herramienta CLI de verificación de calidad y seguridad de código para proyectos de desarrollo. Analiza proyectos Node.js, Python y Java en busca de credenciales expuestas, vulnerabilidades de autenticación y problemas arquitectónicos, combinando detección por regex con análisis semántico potenciado por IA (Google Gemini o Claude).
+Herramienta CLI y GitHub Action de verificación de calidad y seguridad de código para proyectos de desarrollo. Analiza proyectos Node.js, Python y Java en busca de credenciales expuestas, vulnerabilidades de autenticación y problemas arquitectónicos, combinando detección por regex con análisis semántico potenciado por IA (Google Gemini o Claude).
 
 ## Requisitos previos
 
@@ -52,6 +52,7 @@ npx ts-node src/main/index.ts --path <directorio-a-analizar>
 |------|-------------|-------------------|
 | `-p, --path <ruta>` | Directorio del proyecto a escanear | `.` (directorio actual) |
 | `-e, --exclude <patterns>` | Patrones glob separados por comas para excluir archivos/carpetas | `''` (sin exclusiones) |
+| `--output-json <path>` | Exportar resultados en formato JSON a la ruta indicada | _(desactivado)_ |
 
 ### Ejemplos
 
@@ -64,6 +65,9 @@ npx ts-node src/main/index.ts --exclude '*.test.ts,*.spec.ts'
 
 # Analizar con exclusiones múltiples
 npx ts-node src/main/index.ts -p ../otro-proyecto --exclude 'vendor,temp,*.log'
+
+# Exportar resultados a JSON (útil para CI/CD)
+npx ts-node src/main/index.ts -p ./mi-proyecto --output-json ./report.json
 
 # Analizar el directorio actual sin exclusiones
 npx ts-node src/main/index.ts
@@ -151,6 +155,15 @@ Permite suprimir falsos positivos para que no aparezcan en ejecuciones futuras.
 
 **Importación automática:** Los hallazgos marcados como "Falso positivo" en `review-log.md` de versiones anteriores se importan automáticamente como supresiones en la siguiente ejecución.
 
+## Alineación con Guidelines
+
+Si el proyecto auditado contiene un archivo `guidelines.md` en su directorio raíz, la herramienta lo carga automáticamente y lo inyecta como contexto adicional en todos los análisis de IA (arquitectura y autenticación). Esto permite que los hallazgos y sugerencias estén alineados con las convenciones y estándares específicos del proyecto.
+
+- Si se detectan guidelines, el reporte lo indica: **"Guidelines del proyecto: Sí — auditoría alineada con guidelines.md"**
+- Si no se detectan, se indica: **"Guidelines del proyecto: No — auditoría sin contexto de guidelines"**
+
+No se requiere configuración adicional — basta con que el archivo exista en la raíz del proyecto analizado.
+
 ## Severidades
 
 Los hallazgos se clasifican en tres niveles, mostrados con colores en la terminal:
@@ -171,6 +184,62 @@ El detector identifica automáticamente proyectos por la presencia de:
 
 Si no se detecta ninguno, el proyecto se escanea igualmente.
 
+## GitHub Action
+
+CGE-Verificator también puede ejecutarse como GitHub Action para auditar automáticamente pull requests.
+
+### Ejemplo de workflow
+
+```yaml
+name: VCV Audit
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ejecutar CGE-Verificator
+        uses: user/vibeCodingVerificator@main
+        with:
+          path: '.'
+          exclude: 'node_modules,dist,coverage'
+          ai_provider: 'gemini'
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+```
+
+### Inputs
+
+| Input | Descripción | Requerido | Default |
+|-------|-------------|-----------|---------|
+| `path` | Directorio a escanear | No | `.` |
+| `exclude` | Patrones glob separados por comas para excluir | No | `''` |
+| `ai_provider` | Proveedor de IA (`gemini` o `claude`) | No | `gemini` |
+| `gemini_api_key` | API Key de Google Gemini | No | — |
+| `claude_api_key` | API Key de Anthropic (si se usa Claude en CI) | No | — |
+
+### Outputs
+
+| Output | Descripción |
+|--------|-------------|
+| `report_path` | Ruta del directorio de reportes generado |
+| `has_critical` | `true` si se encontraron issues de severidad HIGH |
+
+### Funcionalidades automáticas
+
+- **Comentario en PR**: En pull requests, la Action comenta automáticamente con un resumen de los hallazgos (severidades, top issues). Si ya existe un comentario previo, lo actualiza en lugar de crear uno nuevo.
+- **Artifact**: Sube la carpeta `audit/` como artifact `vcv-audit-report` para descarga posterior.
+
+> Un workflow de ejemplo completo está disponible en `.github/workflows/vcv-audit.example.yml`.
+
 ## Estructura del proyecto
 
 ```
@@ -186,7 +255,7 @@ src/
         │   └── config/                   # Carga de configuración
         │       ├── IConfigLoader.ts      # Interfaz de config loader
         │       └── DotenvConfigLoader.ts # Implementación con dotenv
-        ├── core/                         # Lógica central
+        ├── model/                        # Lógica central
         │   ├── Orchestrator.ts           # Coordina escaneo y resultados
         │   ├── ai/                       # Clientes IA
         │   │   ├── IAIClient.ts          # Interfaz común (Strategy)
@@ -195,16 +264,19 @@ src/
         │   │   ├── GeminiAIClient.ts     # Implementación Gemini
         │   │   ├── ClaudeAIClient.ts     # Implementación Claude SDK
         │   │   └── factory/              # Abstract Factory de clientes IA
-        │   │       ├── AIClientFactory.ts
+        │   │       ├── AIClientFactory.ts # Factory base + AIClientContext
         │   │       ├── AIClientProvider.ts
         │   │       ├── ClaudeClient.ts
         │   │       └── GeminiClient.ts
         │   ├── detector/                 # Detección de stacks tecnológicos
         │   │   ├── Detector.ts
         │   │   └── DetectedStack.ts
-        │   ├── reporter/                 # Reportes consola + Markdown
+        │   ├── guidelines/               # Carga de guidelines del proyecto
+        │   │   └── GuidelinesLoader.ts   # Busca y carga guidelines.md
+        │   ├── reporter/                 # Reportes consola + Markdown + JSON
         │   │   ├── ResultReporter.ts     # Interfaz de reporte
         │   │   ├── ConsoleReporter.ts    # Consola + export a .md
+        │   │   ├── JsonReporter.ts       # Decorator: agrega output JSON
         │   │   └── AuditVersionManager.ts # Versionado de auditorías
         │   ├── scanner/                  # Registry + tipos de escáneres
         │   │   ├── ScannerRegistry.ts    # Registro de factories (Registry)
@@ -221,6 +293,10 @@ src/
             ├── index.ts                  # Re-exports
             ├── ScanResult.ts             # Tipo resultado de escaneo
             └── Severity.ts               # Niveles de severidad + metadata
+
+action.yml                                # GitHub Action definition
+.github/workflows/
+    └── vcv-audit.example.yml             # Workflow de ejemplo
 ```
 
 ## Patrones de Diseño
@@ -230,7 +306,8 @@ El proyecto implementa los siguientes patrones GoF:
 | Patrón | Implementación | Archivo clave |
 |--------|---------------|---------------|
 | Template Method | `BaseScanner.scan()` define el flujo `findFiles()` → `analyzeFile()` | `scanner/BaseScanner.ts` |
-| Abstract Factory | `AIClientFactory` + fábricas concretas `ClaudeClient` / `GeminiClient` | `core/ai/factory/` |
-| Strategy | `IAIClient` interfaz con implementaciones intercambiables | `core/ai/IAIClient.ts` |
-| Registry | `ScannerRegistry` registra factories de escáneres | `core/scanner/ScannerRegistry.ts` |
+| Abstract Factory | `AIClientFactory` + fábricas concretas `ClaudeClient` / `GeminiClient` | `model/ai/factory/` |
+| Strategy | `IAIClient` interfaz con implementaciones intercambiables | `model/ai/IAIClient.ts` |
+| Registry | `ScannerRegistry` registra factories de escáneres | `model/scanner/ScannerRegistry.ts` |
 | Observer/Callback | `scan(onResult)` emite resultados en tiempo real | `BaseScanner.ts` + `Orchestrator.ts` |
+| Decorator | `JsonReporter` envuelve `ConsoleReporter` para agregar output JSON | `model/reporter/JsonReporter.ts` |
