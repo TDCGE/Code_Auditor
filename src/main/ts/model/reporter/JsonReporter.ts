@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { ScanResult, hasLine } from '../../types';
+import { ScanResult, hasLine, AuditMetrics } from '../../types';
 import { ResultReporter } from './ResultReporter';
 import { Severity } from '../../types/Severity';
 
@@ -24,6 +24,10 @@ export class JsonReporter implements ResultReporter {
 
   setCurrentScanner(name: string): void {
     this.wrapped.setCurrentScanner?.(name);
+  }
+
+  setMetrics(metrics: AuditMetrics): void {
+    this.wrapped.setMetrics?.(metrics);
   }
 
   async save(targetPath: string): Promise<string> {

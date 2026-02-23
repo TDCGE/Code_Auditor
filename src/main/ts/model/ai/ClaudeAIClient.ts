@@ -28,9 +28,11 @@ const AI_REVIEW_SCHEMA = {
 export class ClaudeAIClient implements IAIClient {
   private available: boolean | null = null;
   private readonly guidelines: string;
+  private readonly maxTurns: number;
 
-  constructor(guidelines?: string) {
+  constructor(guidelines?: string, maxTurns: number = 30) {
     this.guidelines = guidelines ?? '';
+    this.maxTurns = maxTurns;
   }
 
   public hasKey(): boolean {
@@ -115,7 +117,7 @@ ${this.guidelines}
       const baseOptions = {
         systemPrompt: `Eres un experto en Seguridad OWASP y Arquitectura de Software.
 Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.${guidelinesBlock}`,
-        maxTurns: 20,
+        maxTurns: this.maxTurns,
         allowedTools: [] as string[],
         outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },
       };
@@ -127,7 +129,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerenci
 Responde ÚNICAMENTE con JSON válido, sin texto adicional. Mensajes y sugerencias EN ESPAÑOL.
 IMPORTANTE: Invoca la skill "design-patterns-guide" para enriquecer tu análisis
 con patrones GoF y principios SOLID.${guidelinesBlock}`,
-        maxTurns: 20,
+        maxTurns: this.maxTurns,
         allowedTools: ['Skill', 'Read', 'Glob'],
         outputFormat: { type: 'json_schema' as const, schema: AI_REVIEW_SCHEMA },
       };

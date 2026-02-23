@@ -18,6 +18,21 @@ export type RuleId =
   | 'ai-architecture-review'
   | 'project-structure-check'
   | 'ai-client-unavailable'
+  | 'vulnerable-dependency'
+  | 'dependency-audit-unavailable'
+  | 'insufficient-test-coverage'
+  | 'missing-test-framework'
+  | 'test-quality-issue'
+  | 'code-complexity'
+  | 'code-duplication'
+  | 'naming-convention'
+  | 'code-smell'
+  | 'performance-n-plus-one'
+  | 'performance-resource-leak'
+  | 'performance-blocking-operation'
+  | 'performance-issue'
+  | 'maintainability-coupling'
+  | 'maintainability-documentation'
   | (string & {});
 
 /**

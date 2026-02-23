@@ -41,13 +41,18 @@ export class ArchitectureScanner extends BaseScanner {
       1. Violaciones SOLID.
       2. Antipatrones.
       3. Código espagueti o mala estructura.
+      4. Acoplamiento excesivo: imports circulares, dependencias cruzadas entre capas (ej: modelo importando controlador).
+      5. Baja cohesión: clases/módulos que mezclan responsabilidades no relacionadas.
+      6. Falta de documentación en interfaces públicas: exports, clases o funciones expuestas sin JSDoc/docstring.
+
+      Para issues de mantenibilidad (puntos 4-6), usa la categoría "Mantenibilidad".
 
       Responde SOLO JSON válido. "message" y "suggestion" EN ESPAÑOL:
       {
         "issues": [
           {
             "severity": "HIGH" | "MEDIUM" | "LOW",
-            "category": "Arquitectura",
+            "category": "Arquitectura" | "Mantenibilidad",
             "message": "...",
             "suggestion": "..."
           }
@@ -61,11 +66,14 @@ export class ArchitectureScanner extends BaseScanner {
         const aiResponse = validateAIResponse(rawResponse);
 
         for (const issue of aiResponse.issues) {
+          const rule = issue.category === 'Mantenibilidad'
+            ? this.categorizeMaintainabilityRule(issue.message)
+            : 'ai-architecture-review';
           results.push(createScanResult({
             file: this.relativePath(filePath),
             message: `${issue.category}: ${issue.message}. Sugerencia: ${issue.suggestion}`,
             severity: issue.severity,
-            rule: 'ai-architecture-review',
+            rule,
             suggestion: issue.suggestion,
           }));
         }
@@ -101,6 +109,14 @@ export class ArchitectureScanner extends BaseScanner {
     return [...structureResults, ...fileResults];
   }
 
+  private categorizeMaintainabilityRule(message: string): string {
+    const lower = message.toLowerCase();
+    if (lower.includes('documentación') || lower.includes('jsdoc') || lower.includes('docstring') || lower.includes('readme')) {
+      return 'maintainability-documentation';
+    }
+    return 'maintainability-coupling';
+  }
+
   private async analyzeStructure(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
     try {
@@ -126,34 +142,40 @@ export class ArchitectureScanner extends BaseScanner {
 
           OBJETIVO: Determinar si el proyecto tiene una estructura clara y mantenible.
 
-          SI DETECTAS DESORGANIZACIÓN (muchos archivos en raíz, falta de carpetas src/app/controllers, mezcla de lenguajes sin separación):
-          1. Reporta el problema de "Falta de Estructura Estándar".
-          2. RECOMIENDA UN FRAMEWORK ESPECÍFICO basado en los archivos que ves (ej: si ves .js recomienda NestJS o Express con Clean Arch; si ves .py recomienda Django o FastAPI con estructura modular).
-          3. Explica por qué ese framework beneficiaría a la empresa (CGE).
+          Evalúa:
+          1. ESTRUCTURA: Si detectas desorganización (muchos archivos en raíz, falta de carpetas src/app/controllers, mezcla de lenguajes sin separación), recomienda un framework específico.
+          2. DOCUMENTACIÓN: Verifica presencia de README.md, carpeta docs/, y documentación de API.
+          3. HERRAMIENTAS DE CALIDAD: Verifica presencia de configuración de linter (.eslintrc, pylintrc, checkstyle) y formatter (prettier, black, google-java-format).
+
+          Para problemas de estructura usa category "Estructura de Proyecto".
+          Para problemas de documentación/herramientas usa category "Mantenibilidad".
 
           Responde SOLO con JSON válido:
           {
               "issues": [
                   {
-                      "severity": "HIGH",
-                      "category": "Estructura de Proyecto",
-                      "message": "Explicación del problema de organización",
-                      "suggestion": "Recomendación del Framework y estructura a adoptar"
+                      "severity": "HIGH" | "MEDIUM" | "LOW",
+                      "category": "Estructura de Proyecto" | "Mantenibilidad",
+                      "message": "Explicación del problema",
+                      "suggestion": "Recomendación concreta"
                   }
               ]
           }
-          Si la estructura se ve bien (tiene carpetas claras como src, internal, pkg, api, etc), devuelve "issues": [].
+          Si todo se ve bien, devuelve "issues": [].
       `;
 
       const rawResponse = await this.aiClient.sendPrompt(prompt, { useSkills: true });
       const aiResponse = validateAIResponse(rawResponse);
 
       aiResponse.issues.forEach(issue => {
+        const rule = issue.category === 'Mantenibilidad'
+          ? this.categorizeMaintainabilityRule(issue.message)
+          : 'project-structure-check';
         const result = createScanResult({
           file: 'RAÍZ_DEL_PROYECTO',
           message: `[${issue.category}] ${issue.message}.\n💡 RECOMENDACIÓN: ${issue.suggestion}`,
           severity: issue.severity,
-          rule: 'project-structure-check',
+          rule,
           suggestion: issue.suggestion,
         });
 

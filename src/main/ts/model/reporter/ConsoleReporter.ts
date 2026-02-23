@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import fs from 'fs';
-import { ScanResult, hasLine, SEVERITY_CONFIG, SeverityBadgeColor } from '../../types';
+import { ScanResult, hasLine, SEVERITY_CONFIG, SeverityBadgeColor, AuditMetrics } from '../../types';
 import { ResultReporter } from './ResultReporter';
 import { ScannerSection } from '../scanner/ScannerSection';
 import { AuditVersionManager } from './AuditVersionManager';
@@ -17,6 +17,7 @@ export class ConsoleReporter implements ResultReporter {
   private sections: ScannerSection[] = [];
   private suppressedCount = 0;
   private readonly guidelinesUsed: boolean;
+  private metrics: AuditMetrics | null = null;
 
   constructor(guidelinesUsed: boolean = false) {
     this.guidelinesUsed = guidelinesUsed;
@@ -24,6 +25,10 @@ export class ConsoleReporter implements ResultReporter {
 
   setSuppressedCount(count: number): void {
     this.suppressedCount = count;
+  }
+
+  setMetrics(metrics: AuditMetrics): void {
+    this.metrics = metrics;
   }
 
   printResult(r: ScanResult): void {
@@ -82,6 +87,17 @@ export class ConsoleReporter implements ResultReporter {
     md += `**Fecha:** ${timestamp}\n`;
     md += `**Directorio analizado:** ${targetPath}\n`;
     md += `**Guidelines del proyecto:** ${this.guidelinesUsed ? 'Sí — auditoría alineada con guidelines.md' : 'No — auditoría sin contexto de guidelines'}\n\n`;
+
+    if (this.metrics) {
+      md += `### Métricas del Proyecto\n\n`;
+      md += `| Métrica | Valor |\n`;
+      md += `|---------|-------|\n`;
+      md += `| Archivos de código | ${this.metrics.totalFiles} |\n`;
+      md += `| Líneas totales | ${this.metrics.totalLines.toLocaleString()} |\n`;
+      md += `| Archivos de test | ${this.metrics.testFiles} |\n`;
+      md += `| Stacks detectados | ${this.metrics.stacks.join(', ') || 'N/A'} |\n\n`;
+    }
+
     md += `---\n\n`;
 
     let totalHigh = 0;
@@ -148,7 +164,57 @@ export class ConsoleReporter implements ResultReporter {
 
     const total = totalHigh + totalMedium + totalLow;
 
-    md += `## Resumen\n\n`;
+    // Executive Summary
+    md += `## Resumen Ejecutivo\n\n`;
+
+    const healthScore = Math.max(0, 100 - (totalHigh * 15 + totalMedium * 5 + totalLow * 1));
+    const healthEmoji = healthScore >= 80 ? 'Verde' : healthScore >= 50 ? 'Amarillo' : 'Rojo';
+    md += `**Health Score:** ${healthScore}/100 (${healthEmoji})\n\n`;
+
+    // Issue count by category
+    const categoryCounts: Record<string, number> = {};
+    for (const section of this.sections) {
+      for (const r of section.results) {
+        const cat = section.scanner;
+        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+      }
+    }
+
+    if (Object.keys(categoryCounts).length > 0) {
+      md += `**Issues por categoría:**\n\n`;
+      md += `| Categoría | Cantidad |\n`;
+      md += `|-----------|----------|\n`;
+      for (const [cat, count] of Object.entries(categoryCounts)) {
+        md += `| ${cat} | ${count} |\n`;
+      }
+      md += `\n`;
+    }
+
+    // Top 3 priorities
+    const allIssues: { severity: string; message: string; scanner: string }[] = [];
+    for (const section of this.sections) {
+      for (const r of section.results) {
+        allIssues.push({ severity: r.severity, message: r.message, scanner: section.scanner });
+      }
+    }
+
+    const highIssues = allIssues.filter(i => i.severity === 'HIGH');
+    const mediumIssues = allIssues.filter(i => i.severity === 'MEDIUM');
+    const priorities = highIssues.length > 0 ? highIssues.slice(0, 3) : mediumIssues.slice(0, 3);
+
+    if (priorities.length > 0) {
+      md += `**Top ${priorities.length} prioridades:**\n\n`;
+      priorities.forEach((p, idx) => {
+        const shortMsg = p.message.length > 120 ? p.message.substring(0, 120) + '...' : p.message;
+        md += `${idx + 1}. **[${p.severity}]** ${shortMsg}\n`;
+      });
+      md += `\n`;
+    }
+
+    md += `---\n\n`;
+
+    // Original summary table
+    md += `## Resumen de Severidades\n\n`;
 
     if (this.hasCriticalIssues) {
       md += `Se encontraron problemas **CRÍTICOS** que deben resolverse.\n\n`;

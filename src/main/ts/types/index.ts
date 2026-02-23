@@ -8,3 +8,4 @@ export {
   hasLine,
   createScanResult,
 } from './ScanResult';
+export { AuditMetrics } from './AuditMetrics';

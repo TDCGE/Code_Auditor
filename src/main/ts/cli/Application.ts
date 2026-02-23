@@ -4,8 +4,12 @@ import { DotenvConfigLoader } from './config/DotenvConfigLoader';
 import { createFromProvider } from '../model/ai/factory/AIClientProvider';
 import { ScannerRegistry } from '../model/scanner/ScannerRegistry';
 import { SecretScanner } from '../scanner/SecretScanner';
+import { DependencyScanner } from '../scanner/DependencyScanner';
+import { CodeQualityScanner } from '../scanner/CodeQualityScanner';
 import { ArchitectureScanner } from '../scanner/ArchitectureScanner';
 import { AuthScanner } from '../scanner/AuthScanner';
+import { PerformanceScanner } from '../scanner/PerformanceScanner';
+import { TestingScanner } from '../scanner/TestingScanner';
 import { ConsoleReporter } from '../model/reporter/ConsoleReporter';
 import { JsonReporter } from '../model/reporter/JsonReporter';
 import { Orchestrator } from '../model/Orchestrator';
@@ -34,10 +38,20 @@ export class Application {
       guidelines: guidelines.found ? guidelines.raw : undefined,
     });
 
+    // Crear detector antes del registro de scanners (DependencyScanner lo necesita)
+    const detector = new Detector(options.path, excludePatterns);
+
     const registry = new ScannerRegistry();
+    // Deterministas primero (rápidos)
     registry.register((p, excl) => new SecretScanner(p, excl));
+    registry.register((p, excl) => new DependencyScanner(p, detector, excl));
+    // IA (más lentos)
+    registry.register((p, excl) => new CodeQualityScanner(p, aiClient, excl));
     registry.register((p, excl) => new ArchitectureScanner(p, aiClient, excl));
     registry.register((p, excl) => new AuthScanner(p, aiClient, excl));
+    registry.register((p, excl) => new PerformanceScanner(p, aiClient, excl));
+    // Testing al final (analiza archivos de test que otros ignoran)
+    registry.register((p, excl) => new TestingScanner(p, aiClient, excl));
 
     const scanners = registry.createScanners(options.path, excludePatterns);
 
@@ -46,8 +60,6 @@ export class Application {
     if (options.outputJson) {
       reporter = new JsonReporter(reporter, options.outputJson);
     }
-
-    const detector = new Detector(options.path, excludePatterns);
     const orchestrator = new Orchestrator(detector, scanners, reporter);
     await orchestrator.start();
   }
