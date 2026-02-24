@@ -2,12 +2,9 @@
 .claude/settings.local.json
 **/audit/
 
-# Documentation for design patterns
-docs/desing-patterns/design-patterns.pdf
-design-patterns-divided
-
-# Documentation for Claude Skills
-docs/skills-documentation/The-Complete-Guide-to-Building-Skill-for-Claude.pdf
+# Documentation
+docs
+!docs/MARCO_NORMATIVO.md
 
 # Vulnerable code for testing
 projectsTests
