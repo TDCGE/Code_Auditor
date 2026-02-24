@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Ejecutar CGE-Verificator
-        uses: user/vibeCodingVerificator@main
+        uses: user/Code_Auditor@main
         with:
           path: '.'
           exclude: 'node_modules,dist,coverage'
