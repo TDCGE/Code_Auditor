@@ -1,6 +1,5 @@
 # Claude
 .claude/settings.local.json
-**/audit/
 
 # Documentation
 docs
