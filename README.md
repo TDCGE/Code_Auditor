@@ -13,7 +13,7 @@ Herramienta CLI y GitHub Action de verificación de calidad y seguridad de códi
 
 ```bash
 git clone <url-del-repositorio>
-cd vibeCodingVerificator
+cd Code_Auditor
 npm install
 ```
 
@@ -208,7 +208,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Ejecutar CGE-Verificator
-        uses: user/vibeCodingVerificator@main
+        uses: user/Code_Auditor@main
         with:
           path: '.'
           exclude: 'node_modules,dist,coverage'

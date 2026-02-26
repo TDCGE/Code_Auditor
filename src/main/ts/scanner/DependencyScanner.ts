@@ -2,6 +2,8 @@ import { BaseScanner } from './BaseScanner';
 import { ScanResult, createScanResult, Severity } from '../types';
 import { Detector } from '../model/detector/Detector';
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 export class DependencyScanner extends BaseScanner {
   private detector: Detector;
@@ -132,8 +134,20 @@ export class DependencyScanner extends BaseScanner {
   }
 
   private auditPython(projectPath: string): ScanResult[] {
+    const requirementsPath = path.join(projectPath, 'requirements.txt');
+
+    if (!fs.existsSync(requirementsPath)) {
+      return [createScanResult({
+        file: this.relativePath(projectPath) || '.',
+        message: 'No se encontró requirements.txt en el proyecto Python. No se puede auditar dependencias sin un archivo de requerimientos.',
+        severity: 'LOW',
+        rule: 'dependency-audit-unavailable',
+        suggestion: 'Genere un requirements.txt con "pip freeze > requirements.txt" para habilitar la auditoría de dependencias.',
+      })];
+    }
+
     try {
-      const output = execSync('pip audit --format=json', {
+      const output = execSync('pip-audit -r requirements.txt --format=json', {
         cwd: projectPath,
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: 60000,
@@ -147,12 +161,28 @@ export class DependencyScanner extends BaseScanner {
           return this.parsePipAudit(stdout, projectPath);
         }
       }
+
+      const stderr = (err && typeof err === 'object' && 'stderr' in err)
+        ? (err as { stderr: Buffer }).stderr?.toString() || ''
+        : '';
+      const isNotInstalled = /No module named|is not recognized|not found|ENOENT/.test(stderr);
+
+      if (isNotInstalled) {
+        return [createScanResult({
+          file: this.relativePath(projectPath) || '.',
+          message: 'pip-audit no está instalado. No se puede auditar dependencias Python.',
+          severity: 'LOW',
+          rule: 'dependency-audit-unavailable',
+          suggestion: 'Instale pip-audit con "pip install pip-audit" y ejecute "pip-audit -r requirements.txt" manualmente.',
+        })];
+      }
+
       return [createScanResult({
         file: this.relativePath(projectPath) || '.',
-        message: 'No se pudo ejecutar pip audit. Asegúrese de que pip-audit esté instalado (pip install pip-audit).',
+        message: `Error al ejecutar pip-audit: ${stderr.trim() || 'error desconocido'}.`,
         severity: 'LOW',
-        rule: 'dependency-audit-unavailable',
-        suggestion: 'Instale pip-audit con "pip install pip-audit" y ejecute "pip audit" manualmente.',
+        rule: 'dependency-audit-error',
+        suggestion: 'Revise que requirements.txt sea válido y ejecute "pip-audit -r requirements.txt" manualmente para más detalles.',
       })];
     }
   }

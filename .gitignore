@@ -2,8 +2,9 @@
 .claude/settings.local.json
 
 # Documentation
-docs
+docs/**
 !docs/MARCO_NORMATIVO.md
+!docs/DEFINICIONES_NORMAS.md
 
 # Vulnerable code for testing
 projectsTests
