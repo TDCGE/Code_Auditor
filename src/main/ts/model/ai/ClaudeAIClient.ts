@@ -2,9 +2,10 @@ import path from 'path';
 import { IAIClient } from './IAIClient';
 import {AIReviewResult} from "./AIReviewResult";
 
-// Dynamic import que ts-node no transforma a require()
+/** Dynamic import que ts-node no transforma a require(). */
 const importESM = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<any>;
 
+/** Schema JSON para structured output del SDK de Claude. Define la estructura esperada de {@link AIReviewResult}. */
 const AI_REVIEW_SCHEMA = {
   type: 'object' as const,
   properties: {
@@ -25,16 +26,32 @@ const AI_REVIEW_SCHEMA = {
   required: ['issues'],
 };
 
+/**
+ * Cliente de IA basado en el SDK de Claude Agent (`@anthropic-ai/claude-agent-sdk`).
+ * Implementa {@link IAIClient} usando la autenticación del CLI de Claude (sin API key explícita).
+ * Soporta structured output vía JSON schema y modo skills para análisis de arquitectura.
+ *
+ * Degrada gracefully: si el CLI de Claude no está disponible, `hasKey()` retorna `false`
+ * y los scanners omiten el análisis sin interrumpir la ejecución.
+ */
 export class ClaudeAIClient implements IAIClient {
   private available: boolean | null = null;
   private readonly guidelines: string;
   private readonly maxTurns: number;
 
+  /**
+   * @param guidelines — Contenido de `guidelines.md` del proyecto auditado (opcional).
+   * @param maxTurns — Límite de turnos para el SDK de Claude (default: 30).
+   */
   constructor(guidelines?: string, maxTurns: number = 30) {
     this.guidelines = guidelines ?? '';
     this.maxTurns = maxTurns;
   }
 
+  /**
+   * Verifica si el CLI de Claude está instalado y accesible.
+   * Cachea el resultado para evitar ejecuciones repetidas de `claude --version`.
+   */
   public hasKey(): boolean {
     if (this.available !== null) return this.available;
 
@@ -52,6 +69,7 @@ export class ClaudeAIClient implements IAIClient {
     return this.available;
   }
 
+  /** {@inheritDoc IAIClient.analyzeCode} */
   public async analyzeCode(codeSnippet: string, filename: string): Promise<AIReviewResult> {
     const sanitizedCode = codeSnippet.replace(/"/g, '\\"').replace(/\n/g, '\\n');
 
@@ -85,10 +103,12 @@ export class ClaudeAIClient implements IAIClient {
     return this.callClaude(prompt, false);
   }
 
+  /** {@inheritDoc IAIClient.sendPrompt} */
   public async sendPrompt(prompt: string, options?: { useSkills?: boolean }): Promise<AIReviewResult> {
     return this.callClaude(prompt, options?.useSkills ?? false);
   }
 
+  /** Construye el bloque de contexto de guidelines para inyectar en el system prompt. */
   private buildGuidelinesBlock(): string {
     if (!this.guidelines) return '';
     return `
@@ -105,6 +125,12 @@ ${this.guidelines}
 --- FIN GUIDELINES ---`;
   }
 
+  /**
+   * Ejecuta una consulta al SDK de Claude con structured output.
+   * Intenta obtener el resultado vía `structured_output`; si falla, extrae JSON del texto libre.
+   * @param prompt — Prompt a enviar al modelo.
+   * @param useSkills — Si `true`, habilita las skills de Claude para análisis enriquecido.
+   */
   private async callClaude(prompt: string, useSkills: boolean = false): Promise<AIReviewResult> {
     try {
       // Permitir ejecución desde dentro de una sesión de Claude Code

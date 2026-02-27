@@ -5,18 +5,32 @@ import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../model/ai
 import { globSync } from 'glob';
 import path from 'path';
 
+/**
+ * Scanner AI-powered de arquitectura y estructura de proyecto.
+ * Extiende {@link BaseScanner} con un análisis en dos fases:
+ * 1. **Estructura del proyecto**: evalúa la organización de carpetas y archivos.
+ * 2. **Calidad de código**: analiza hasta 3 archivos buscando violaciones SOLID y antipatrones.
+ * Usa skills de Claude para enriquecer el análisis con patrones GoF y principios SOLID.
+ */
 export class ArchitectureScanner extends BaseScanner {
   private aiClient: IAIClient;
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param aiClient — Cliente de IA para análisis semántico.
+   * @param excludePatterns — Patrones glob de exclusión del usuario.
+   */
   constructor(targetPath: string, aiClient: IAIClient, excludePatterns: string[] = []) {
     super(targetPath, excludePatterns);
     this.aiClient = aiClient;
   }
 
+  /** {@inheritDoc BaseScanner.getName} */
   getName(): string {
     return 'Revisor de Arquitectura con IA';
   }
 
+  /** Selecciona hasta 3 archivos de código fuente para análisis individual. */
   protected findFiles(): string[] {
     const files = globSync('**/*.{ts,js,py,java,cs}', {
       cwd: this.targetPath,
@@ -27,6 +41,7 @@ export class ArchitectureScanner extends BaseScanner {
     return files.slice(0, 3);
   }
 
+  /** Envía cada chunk del archivo al cliente de IA para análisis de arquitectura y mantenibilidad. */
   protected async analyzeFile(filePath: string, content: string): Promise<ScanResult[]> {
     const chunks = chunkContent(content);
     const results: ScanResult[] = [];
@@ -109,6 +124,7 @@ export class ArchitectureScanner extends BaseScanner {
     return [...structureResults, ...fileResults];
   }
 
+  /** Clasifica un hallazgo de mantenibilidad en sub-regla según palabras clave del mensaje. */
   private categorizeMaintainabilityRule(message: string): string {
     const lower = message.toLowerCase();
     if (lower.includes('documentación') || lower.includes('jsdoc') || lower.includes('docstring') || lower.includes('readme')) {
@@ -117,6 +133,10 @@ export class ArchitectureScanner extends BaseScanner {
     return 'maintainability-coupling';
   }
 
+  /**
+   * Analiza la estructura de carpetas del proyecto a nivel macro.
+   * Evalúa organización, documentación y herramientas de calidad.
+   */
   private async analyzeStructure(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
     try {

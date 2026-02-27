@@ -5,18 +5,31 @@ import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../model/ai
 import { globSync } from 'glob';
 import path from 'path';
 
+/**
+ * Scanner AI-powered de autenticación y autorización.
+ * Extiende {@link BaseScanner} y utiliza un {@link IAIClient} para analizar archivos
+ * relacionados con auth, login, session, middleware, JWT y control de acceso.
+ * Busca fallos OWASP en JWT, hashing de contraseñas, rutas sin protección y cookies inseguras.
+ */
 export class AuthScanner extends BaseScanner {
   private aiClient: IAIClient;
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param aiClient — Cliente de IA para análisis semántico.
+   * @param excludePatterns — Patrones glob de exclusión del usuario.
+   */
   constructor(targetPath: string, aiClient: IAIClient, excludePatterns: string[] = []) {
     super(targetPath, excludePatterns);
     this.aiClient = aiClient;
   }
 
+  /** {@inheritDoc BaseScanner.getName} */
   getName(): string {
     return 'Auditor de Autenticación y Autorización';
   }
 
+  /** Busca archivos relacionados con autenticación, autorización y seguridad. */
   protected findFiles(): string[] {
     return globSync('**/{auth,login,session,middleware,security,config,user,permission,role,token,oauth,passport,guard,policy,route,api,controller,jwt,access}*.{ts,js,py,java}', {
       cwd: this.targetPath,
@@ -26,6 +39,7 @@ export class AuthScanner extends BaseScanner {
     });
   }
 
+  /** Envía cada chunk del archivo al cliente de IA para detectar fallos de autenticación/autorización. */
   protected async analyzeFile(filePath: string, content: string): Promise<ScanResult[]> {
     const chunks = chunkContent(content);
     const results: ScanResult[] = [];
@@ -81,6 +95,10 @@ export class AuthScanner extends BaseScanner {
     return results;
   }
 
+  /**
+   * Override de scan: verifica disponibilidad del cliente de IA antes de ejecutar.
+   * Si el cliente no está disponible, emite un warning y omite el análisis (degradación graceful).
+   */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     if (!this.aiClient.hasKey()) {
       const warning = createScanResult({

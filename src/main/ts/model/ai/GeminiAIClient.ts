@@ -5,19 +5,31 @@ import {AIReviewResult} from "./AIReviewResult";
 
 dotenv.config();
 
+/**
+ * Cliente de IA basado en la API REST de Google Gemini 2.5 Flash.
+ * Implementa {@link IAIClient} usando `GEMINI_API_KEY` de las variables de entorno.
+ *
+ * Degrada gracefully: si la API key no está configurada o la llamada falla,
+ * retorna `{issues: []}` sin interrumpir la ejecución.
+ */
 export class GeminiAIClient implements IAIClient {
   private readonly apiKey: string | undefined;
   private readonly guidelines: string;
 
+  /**
+   * @param guidelines — Contenido de `guidelines.md` del proyecto auditado (opcional).
+   */
   constructor(guidelines?: string) {
     this.apiKey = process.env.GEMINI_API_KEY;
     this.guidelines = guidelines ?? '';
   }
 
+  /** Verifica que `GEMINI_API_KEY` esté configurada y sea válida. */
   public hasKey(): boolean {
     return !!this.apiKey && this.apiKey !== 'PEGAR_TU_KEY_AQUI' && this.apiKey.length > 10;
   }
 
+  /** {@inheritDoc IAIClient.analyzeCode} */
   public async analyzeCode(codeSnippet: string, filename: string): Promise<AIReviewResult> {
     if (!this.apiKey) throw new Error('API Key no configurada');
 
@@ -54,11 +66,13 @@ export class GeminiAIClient implements IAIClient {
     return this.callGeminiAPI(prompt);
   }
 
+  /** {@inheritDoc IAIClient.sendPrompt} */
   public async sendPrompt(prompt: string, _options?: { useSkills?: boolean }): Promise<AIReviewResult> {
     if (!this.apiKey) throw new Error('API Key no configurada');
     return this.callGeminiAPI(prompt);
   }
 
+  /** Construye el bloque de contexto de guidelines para anteponer al prompt. */
   private buildGuidelinesBlock(): string {
     if (!this.guidelines) return '';
     return `
@@ -76,6 +90,10 @@ ${this.guidelines}
 `;
   }
 
+  /**
+   * Realiza una llamada HTTP POST a la API de Gemini y parsea la respuesta JSON.
+   * @param prompt — Prompt completo (con guidelines prepend si aplica).
+   */
   private async callGeminiAPI(prompt: string): Promise<AIReviewResult> {
     const fullPrompt = this.buildGuidelinesBlock() + prompt;
     const payload = {

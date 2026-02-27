@@ -1,8 +1,14 @@
 import { SEVERITIES } from '../../types';
 import { AIReviewResult } from './AIReviewResult';
 
+/**
+ * Fragmento de contenido generado por {@link chunkContent}.
+ * Preserva el número de línea inicial para permitir correlacionar hallazgos con el archivo original.
+ */
 export interface ContentChunk {
+  /** Texto del fragmento. */
   text: string;
+  /** Número de línea (1-indexed) donde comienza este fragmento en el archivo original. */
   startLine: number;
 }
 

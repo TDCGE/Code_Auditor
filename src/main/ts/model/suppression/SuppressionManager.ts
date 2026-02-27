@@ -5,12 +5,18 @@ import { globSync } from 'glob';
 import { ScanResult } from '../../types';
 import { SuppressionEntry, SuppressionsFile } from './SuppressionEntry';
 
+/**
+ * Gestor de supresiones de hallazgos (falsos positivos).
+ * Carga supresiones desde `audit/suppressions.json` y/o desde review-logs anteriores,
+ * evalúa si un resultado debe ser suprimido, y persiste el estado actualizado.
+ */
 export class SuppressionManager {
   private targetPath: string;
   private suppressions: SuppressionEntry[] = [];
   private considerations: string[] = [];
   private suppressedCount = 0;
 
+  /** @param targetPath — Ruta raíz del proyecto auditado. */
   constructor(targetPath: string) {
     this.targetPath = targetPath;
   }
@@ -95,10 +101,12 @@ export class SuppressionManager {
     return false;
   }
 
+  /** Retorna la cantidad de hallazgos suprimidos durante la auditoría actual. */
   getSuppressedCount(): number {
     return this.suppressedCount;
   }
 
+  /** Retorna las consideraciones definidas en el archivo de supresiones. */
   getConsiderations(): string[] {
     return this.considerations;
   }

@@ -19,7 +19,17 @@ import { ResultReporter } from '../model/reporter/ResultReporter';
 import chalk from 'chalk';
 import { Banner } from './Banner';
 
+/**
+ * Fachada principal del sistema CGE-Verificator (patrón **Facade**).
+ * Orquesta la inicialización de dependencias (AI client, scanners, reporter, detector)
+ * y delega la ejecución completa al {@link Orchestrator}.
+ */
 export class Application {
+  /**
+   * Ejecuta el flujo completo de auditoría: carga guidelines, crea AI client,
+   * registra scanners, compone el reporter y lanza el Orchestrator.
+   * @param options — Opciones parseadas desde la línea de comandos.
+   */
   async run(options: CLIOptions): Promise<void> {
     const excludePatterns = options.exclude
       ? options.exclude.split(',').map((p: string) => p.trim()).filter(Boolean)
@@ -64,6 +74,11 @@ export class Application {
     await orchestrator.start();
   }
 
+  /**
+   * Punto de entrada estático: carga configuración, muestra el banner e inicia la auditoría.
+   * Captura errores fatales y termina el proceso con código de salida 1.
+   * @param opts — Opciones CLI recibidas de Commander.js.
+   */
   static async bootstrap(opts: CLIOptions) {
     try {
       const configLoaders: IConfigLoader[] = [new DotenvConfigLoader()];

@@ -5,18 +5,31 @@ import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../model/ai
 import { globSync } from 'glob';
 import path from 'path';
 
+/**
+ * Scanner híbrido de testing y cobertura.
+ * Combina análisis determinista (ratio de cobertura, detección de frameworks)
+ * con análisis AI-powered de calidad de tests existentes.
+ * Extiende {@link BaseScanner} con un `scan()` personalizado de dos fases.
+ */
 export class TestingScanner extends BaseScanner {
   private aiClient: IAIClient;
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param aiClient — Cliente de IA para análisis de calidad de tests.
+   * @param excludePatterns — Patrones glob de exclusión del usuario.
+   */
   constructor(targetPath: string, aiClient: IAIClient, excludePatterns: string[] = []) {
     super(targetPath, excludePatterns);
     this.aiClient = aiClient;
   }
 
+  /** {@inheritDoc BaseScanner.getName} */
   getName(): string {
     return 'Auditor de Testing y Cobertura';
   }
 
+  /** Busca archivos de test (`.test.*`, `.spec.*`). */
   protected findFiles(): string[] {
     return globSync('**/*.{test,spec}.{ts,js,py,java}', {
       cwd: this.targetPath,
@@ -26,6 +39,7 @@ export class TestingScanner extends BaseScanner {
     });
   }
 
+  /** Envía cada chunk del archivo de test al cliente de IA para análisis de calidad. */
   protected async analyzeFile(filePath: string, content: string): Promise<ScanResult[]> {
     const chunks = chunkContent(content);
     const results: ScanResult[] = [];
@@ -81,6 +95,11 @@ export class TestingScanner extends BaseScanner {
     return results;
   }
 
+  /**
+   * Override de scan con dos fases:
+   * 1. **Determinista**: calcula ratio de cobertura y detecta frameworks de test.
+   * 2. **IA**: analiza calidad de tests existentes si el cliente de IA está disponible.
+   */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     const allResults: ScanResult[] = [];
 
@@ -112,6 +131,10 @@ export class TestingScanner extends BaseScanner {
     return allResults;
   }
 
+  /**
+   * Calcula el ratio archivos de test / archivos de código y genera hallazgos
+   * si la cobertura es insuficiente (ratio < 0.1 = HIGH, < 0.3 = MEDIUM).
+   */
   private analyzeCoverageRatio(): ScanResult[] {
     const results: ScanResult[] = [];
 
@@ -159,6 +182,10 @@ export class TestingScanner extends BaseScanner {
     return results;
   }
 
+  /**
+   * Detecta la presencia de frameworks de testing (Jest, Mocha, pytest, JUnit, etc.)
+   * y genera un hallazgo MEDIUM si no se encuentra ninguno para el stack detectado.
+   */
   private detectTestFramework(): ScanResult[] {
     const results: ScanResult[] = [];
 

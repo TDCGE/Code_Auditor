@@ -5,18 +5,31 @@ import { chunkContent, wrapCodeForPrompt, validateAIResponse } from '../model/ai
 import { globSync } from 'glob';
 import path from 'path';
 
+/**
+ * Scanner AI-powered de rendimiento.
+ * Extiende {@link BaseScanner} y analiza archivos de base de datos, servicios, controllers
+ * y middleware buscando queries N+1, falta de paginación, resource leaks,
+ * operaciones bloqueantes y oportunidades de caching.
+ */
 export class PerformanceScanner extends BaseScanner {
   private aiClient: IAIClient;
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param aiClient — Cliente de IA para análisis semántico.
+   * @param excludePatterns — Patrones glob de exclusión del usuario.
+   */
   constructor(targetPath: string, aiClient: IAIClient, excludePatterns: string[] = []) {
     super(targetPath, excludePatterns);
     this.aiClient = aiClient;
   }
 
+  /** {@inheritDoc BaseScanner.getName} */
   getName(): string {
     return 'Auditor de Performance con IA';
   }
 
+  /** Busca archivos de base de datos, servicios, controllers y middleware. */
   protected findFiles(): string[] {
     return globSync(
       '**/{*database*,*db*,*query*,*repository*,*service*,*controller*,*handler*,*api*,*route*,*middleware*,*cache*,*connection*,*pool*}.{ts,js,py,java}',
@@ -32,6 +45,7 @@ export class PerformanceScanner extends BaseScanner {
     );
   }
 
+  /** Envía cada chunk del archivo al cliente de IA para análisis de rendimiento. */
   protected async analyzeFile(filePath: string, content: string): Promise<ScanResult[]> {
     const chunks = chunkContent(content);
     const results: ScanResult[] = [];
@@ -89,6 +103,7 @@ export class PerformanceScanner extends BaseScanner {
     return results;
   }
 
+  /** Clasifica un hallazgo de performance en sub-regla según palabras clave del mensaje. */
   private categorizeRule(message: string): string {
     const lower = message.toLowerCase();
     if (lower.includes('n+1') || lower.includes('n plus 1') || lower.includes('query dentro') || lower.includes('loop')) {
@@ -103,6 +118,7 @@ export class PerformanceScanner extends BaseScanner {
     return 'performance-issue';
   }
 
+  /** Override: verifica disponibilidad de IA antes de ejecutar (degradación graceful). */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     if (!this.aiClient.hasKey()) {
       const warning = createScanResult({

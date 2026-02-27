@@ -2,21 +2,37 @@ import path from 'path';
 import {globSync} from 'glob';
 import {DetectedStack} from "./DetectedStack";
 
+/** Stacks tecnológicos reconocidos por el detector. */
 export type TechStack = 'node' | 'python' | 'java' | 'unknown';
 
+/**
+ * Detector de stacks tecnológicos del proyecto analizado.
+ * Identifica proyectos Node.js, Python y Java buscando archivos de configuración
+ * característicos (`package.json`, `requirements.txt`, `pom.xml`, etc.) de forma recursiva.
+ */
 export class Detector {
   private readonly targetPath: string;
   private readonly excludePatterns: string[];
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param excludePatterns — Patrones glob para excluir directorios de la búsqueda.
+   */
   constructor(targetPath: string, excludePatterns: string[] = []) {
     this.targetPath = targetPath;
     this.excludePatterns = excludePatterns;
   }
 
+  /** Retorna la ruta raíz del proyecto analizado. */
   public getTargetPath(): string {
     return this.targetPath;
   }
 
+  /**
+   * Detecta todos los stacks tecnológicos presentes en el proyecto.
+   * Busca recursivamente archivos de configuración y retorna un array de {@link DetectedStack}.
+   * Si no detecta ningún stack específico, retorna `[{stack: 'unknown', path: targetPath}]`.
+   */
   public async detect(): Promise<DetectedStack[]> {
     const detected: DetectedStack[] = [];
 

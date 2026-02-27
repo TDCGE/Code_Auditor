@@ -8,17 +8,31 @@ import { SuppressionManager } from './suppression/SuppressionManager';
 import { ConsoleReporter } from './reporter/ConsoleReporter';
 import { AuditMetrics } from '../types';
 
+/**
+ * Orquestador principal del flujo de auditoría (patrón **Facade/Mediator**).
+ * Coordina la detección de stacks, el cálculo de métricas, la gestión de supresiones,
+ * la ejecución secuencial de scanners con streaming de resultados, y la generación de reportes.
+ */
 export class Orchestrator {
   private detector: Detector;
   private scanners: BaseScanner[];
   private reporter: ResultReporter;
 
+  /**
+   * @param detector — Detector de stacks tecnológicos del proyecto.
+   * @param scanners — Lista de scanners a ejecutar en orden.
+   * @param reporter — Reporter para imprimir y persistir resultados.
+   */
   constructor(detector: Detector, scanners: BaseScanner[], reporter: ResultReporter) {
     this.detector = detector;
     this.scanners = scanners;
     this.reporter = reporter;
   }
 
+  /**
+   * Ejecuta el flujo completo de auditoría:
+   * 1. Detección de stacks → 2. Métricas → 3. Supresiones → 4. Scanners → 5. Resumen → 6. Exportación.
+   */
   public async start(): Promise<void> {
     const targetPath = this.detector.getTargetPath();
     console.log(chalk.blue(`[*] Iniciando análisis en tiempo real en: ${targetPath}`));
@@ -89,6 +103,10 @@ export class Orchestrator {
     }
   }
 
+  /**
+   * Calcula métricas cuantitativas del proyecto: archivos de código, líneas totales,
+   * archivos de test y stacks detectados.
+   */
   private calculateMetrics(targetPath: string, stacks: string[]): AuditMetrics {
     const codeFiles = globSync('**/*.{ts,js,py,java,cs}', {
       cwd: targetPath,

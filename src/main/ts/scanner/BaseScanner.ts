@@ -3,15 +3,29 @@ import path from 'path';
 import micromatch from 'micromatch';
 import { ScanResult } from '../types'
 
+/**
+ * Clase base abstracta para todos los scanners del sistema (patrón **Template Method**).
+ * Define el flujo `scan()`: buscar archivos → filtrar excluidos → leer → analizar → emitir resultados.
+ * Las subclases implementan `getName()`, `findFiles()` y `analyzeFile()`.
+ *
+ * @see SecretScanner — Scanner determinista de secretos hardcodeados.
+ * @see AuthScanner — Scanner AI-powered de autenticación.
+ * @see ArchitectureScanner — Scanner AI-powered de arquitectura.
+ */
 export abstract class BaseScanner {
   protected targetPath: string;
   protected excludePatterns: string[] = [];
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param excludePatterns — Patrones glob proporcionados por el usuario para excluir archivos.
+   */
   constructor(targetPath: string, excludePatterns: string[] = []) {
     this.targetPath = targetPath;
     this.excludePatterns = excludePatterns;
   }
 
+  /** Retorna el nombre descriptivo del scanner (mostrado en consola y reportes). */
   abstract getName(): string;
 
   /** Override in subclasses to return the list of files to analyze. */

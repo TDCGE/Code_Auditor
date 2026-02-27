@@ -6,18 +6,31 @@ import { globSync } from 'glob';
 import path from 'path';
 import fs from 'fs';
 
+/**
+ * Scanner AI-powered de calidad de código (Clean Code).
+ * Extiende {@link BaseScanner} y analiza los 5 archivos más grandes del proyecto
+ * buscando complejidad excesiva, duplicación, convenciones de naming inconsistentes,
+ * code smells y falta de manejo de errores.
+ */
 export class CodeQualityScanner extends BaseScanner {
   private aiClient: IAIClient;
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param aiClient — Cliente de IA para análisis semántico.
+   * @param excludePatterns — Patrones glob de exclusión del usuario.
+   */
   constructor(targetPath: string, aiClient: IAIClient, excludePatterns: string[] = []) {
     super(targetPath, excludePatterns);
     this.aiClient = aiClient;
   }
 
+  /** {@inheritDoc BaseScanner.getName} */
   getName(): string {
     return 'Auditor de Calidad de Código con IA';
   }
 
+  /** Selecciona los 5 archivos más grandes (por tamaño) excluyendo tests. */
   protected findFiles(): string[] {
     const files = globSync('**/*.{ts,js,py,java,cs}', {
       cwd: this.targetPath,
@@ -43,6 +56,7 @@ export class CodeQualityScanner extends BaseScanner {
     return withSize.slice(0, 5).map(f => f.path);
   }
 
+  /** Envía cada chunk del archivo al cliente de IA para análisis de calidad de código. */
   protected async analyzeFile(filePath: string, content: string): Promise<ScanResult[]> {
     const chunks = chunkContent(content);
     const results: ScanResult[] = [];
@@ -99,6 +113,7 @@ export class CodeQualityScanner extends BaseScanner {
     return results;
   }
 
+  /** Clasifica un hallazgo de calidad en sub-regla según palabras clave del mensaje. */
   private categorizeRule(message: string): string {
     const lower = message.toLowerCase();
     if (lower.includes('complejidad') || lower.includes('complexity') || lower.includes('anidamiento') || lower.includes('líneas')) {
@@ -113,6 +128,7 @@ export class CodeQualityScanner extends BaseScanner {
     return 'code-smell';
   }
 
+  /** Override: verifica disponibilidad de IA antes de ejecutar (degradación graceful). */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     if (!this.aiClient.hasKey()) {
       const warning = createScanResult({

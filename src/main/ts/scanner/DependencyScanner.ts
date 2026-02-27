@@ -5,14 +5,26 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * Scanner determinista de dependencias vulnerables.
+ * Extiende {@link BaseScanner} pero override `scan()` directamente (no usa `findFiles`/`analyzeFile`)
+ * para ejecutar herramientas nativas de auditoría: `npm audit`, `pip-audit` y `mvn dependency:tree`.
+ * Detecta automáticamente los stacks del proyecto vía {@link Detector}.
+ */
 export class DependencyScanner extends BaseScanner {
   private detector: Detector;
 
+  /**
+   * @param targetPath — Ruta raíz del proyecto a analizar.
+   * @param detector — Detector de stacks para saber qué herramientas de auditoría ejecutar.
+   * @param excludePatterns — Patrones glob de exclusión del usuario.
+   */
   constructor(targetPath: string, detector: Detector, excludePatterns: string[] = []) {
     super(targetPath, excludePatterns);
     this.detector = detector;
   }
 
+  /** {@inheritDoc BaseScanner.getName} */
   getName(): string {
     return 'Escáner de Dependencias Vulnerables';
   }
@@ -25,6 +37,7 @@ export class DependencyScanner extends BaseScanner {
     return [];
   }
 
+  /** Ejecuta auditoría de dependencias para cada stack detectado en el proyecto. */
   async scan(onResult?: (result: ScanResult) => void): Promise<ScanResult[]> {
     const allResults: ScanResult[] = [];
     const stacks = await this.detector.detect();
@@ -53,6 +66,7 @@ export class DependencyScanner extends BaseScanner {
     return allResults;
   }
 
+  /** Ejecuta `npm audit --json` y parsea los resultados. */
   private auditNode(projectPath: string): ScanResult[] {
     try {
       const output = execSync('npm audit --json', {
@@ -80,6 +94,7 @@ export class DependencyScanner extends BaseScanner {
     }
   }
 
+  /** Parsea la salida JSON de `npm audit` y genera resultados por vulnerabilidad. */
   private parseNpmAudit(output: string, projectPath: string): ScanResult[] {
     const results: ScanResult[] = [];
 
@@ -108,6 +123,7 @@ export class DependencyScanner extends BaseScanner {
     return results;
   }
 
+  /** Extrae descripciones de la cadena `via` de npm audit. */
   private extractViaDescriptions(via: unknown[] | undefined): string {
     if (!Array.isArray(via)) return '';
     const descriptions: string[] = [];
@@ -119,6 +135,7 @@ export class DependencyScanner extends BaseScanner {
     return descriptions.length > 0 ? descriptions.join('; ') : '';
   }
 
+  /** Mapea severidades de npm audit a severidades del sistema CGE-Verificator. */
   private mapNpmSeverity(severity: string): Severity {
     switch (severity.toLowerCase()) {
       case 'critical':
@@ -133,6 +150,7 @@ export class DependencyScanner extends BaseScanner {
     }
   }
 
+  /** Ejecuta `pip-audit` contra `requirements.txt` y parsea los resultados. */
   private auditPython(projectPath: string): ScanResult[] {
     const requirementsPath = path.join(projectPath, 'requirements.txt');
 
@@ -187,6 +205,7 @@ export class DependencyScanner extends BaseScanner {
     }
   }
 
+  /** Parsea la salida JSON de `pip-audit` y genera resultados por vulnerabilidad. */
   private parsePipAudit(output: string, projectPath: string): ScanResult[] {
     const results: ScanResult[] = [];
 
@@ -215,6 +234,7 @@ export class DependencyScanner extends BaseScanner {
     return results;
   }
 
+  /** Ejecuta `mvn dependency:tree` y recomienda OWASP dependency-check para Java. */
   private auditJava(projectPath: string): ScanResult[] {
     try {
       execSync('mvn dependency:tree -DoutputType=text', {

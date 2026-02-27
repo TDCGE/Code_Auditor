@@ -11,6 +11,14 @@ const BADGE_FORMATTERS: Record<SeverityBadgeColor, (text: string) => string> = {
   blue:   (t) => chalk.bgBlue.white(t),
 };
 
+/**
+ * Reportador principal que imprime resultados en consola con colores (via chalk)
+ * y genera reportes Markdown (`audit.md`, `review-log.md`, `changelog.md`)
+ * en el directorio `audit/vN/` del proyecto auditado.
+ *
+ * Acumula resultados por sección de scanner y calcula métricas de resumen
+ * (health score, conteo por severidad, top prioridades).
+ */
 export class ConsoleReporter implements ResultReporter {
   private hasCriticalIssues = false;
   private currentScanner = '';
@@ -19,18 +27,24 @@ export class ConsoleReporter implements ResultReporter {
   private readonly guidelinesUsed: boolean;
   private metrics: AuditMetrics | null = null;
 
+  /**
+   * @param guidelinesUsed — Indica si la auditoría utilizó guidelines del proyecto.
+   */
   constructor(guidelinesUsed: boolean = false) {
     this.guidelinesUsed = guidelinesUsed;
   }
 
+  /** Establece el conteo de hallazgos suprimidos para incluirlo en el reporte. */
   setSuppressedCount(count: number): void {
     this.suppressedCount = count;
   }
 
+  /** {@inheritDoc ResultReporter.setMetrics} */
   setMetrics(metrics: AuditMetrics): void {
     this.metrics = metrics;
   }
 
+  /** Imprime un resultado en consola con badge de severidad y lo acumula en la sección actual. */
   printResult(r: ScanResult): void {
     if (r.severity === 'HIGH') this.hasCriticalIssues = true;
 
@@ -48,6 +62,7 @@ export class ConsoleReporter implements ResultReporter {
     }
   }
 
+  /** Imprime el resumen final indicando si hay problemas críticos. */
   printSummary(): void {
     console.log(chalk.bgBlue.white.bold(' === RESUMEN FINAL === '));
     if (this.hasCriticalIssues) {
@@ -57,11 +72,18 @@ export class ConsoleReporter implements ResultReporter {
     }
   }
 
+  /** {@inheritDoc ResultReporter.setCurrentScanner} */
   setCurrentScanner(name: string): void {
     this.currentScanner = name;
     this.sections.push({ scanner: name, results: [] });
   }
 
+  /**
+   * Genera y guarda los tres archivos de reporte en `audit/vN/`:
+   * `audit.md`, `review-log.md` y `changelog.md`.
+   * @param targetPath — Ruta raíz del proyecto auditado.
+   * @returns Ruta del directorio versionado donde se guardaron los reportes.
+   */
   async save(targetPath: string): Promise<string> {
     const versionManager = new AuditVersionManager(targetPath);
     const versionDir = versionManager.createVersionDir();
@@ -79,6 +101,7 @@ export class ConsoleReporter implements ResultReporter {
     return versionDir;
   }
 
+  /** Genera el contenido Markdown del reporte principal de auditoría (`audit.md`). */
   private generateAuditMarkdown(targetPath: string): string {
     const now = new Date();
     const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
@@ -238,6 +261,7 @@ export class ConsoleReporter implements ResultReporter {
     return md;
   }
 
+  /** Genera la plantilla de revisión manual (`review-log.md`) con tabla de veredictos. */
   private generateReviewLog(): string {
     let md = `# Review Log - Revisión Manual de Auditoría\n\n`;
     md += `> Complete esta tabla tras revisar cada hallazgo del reporte \`audit.md\`.\n\n`;
@@ -262,6 +286,7 @@ export class ConsoleReporter implements ResultReporter {
     return md;
   }
 
+  /** Genera la plantilla de changelog (`changelog.md`) para documentar correcciones. */
   private generateChangelog(): string {
     let md = `# Changelog - Registro de Correcciones\n\n`;
     md += `> Documente aquí las correcciones aplicadas a los hallazgos de \`audit.md\`.\n\n`;

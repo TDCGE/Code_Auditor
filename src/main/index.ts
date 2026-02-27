@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+/**
+ * @module main
+ * Punto de entrada principal del CLI CGE-Verificator.
+ * Configura Commander.js con las opciones `--path`, `--exclude` y `--output-json`,
+ * y delega la ejecución a {@link Application.bootstrap}.
+ */
 import { Command } from 'commander';
 import { version, description } from '../../package.json';
 import { Application, CLIOptions } from './ts/cli';
